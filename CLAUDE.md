@@ -4,7 +4,7 @@ Guide for coding agents and contributors working in this repository (AstreoX/uBo
 
 ## What this is
 
-UBotAerial is the multirotor plugin of the uBot family for Unreal Engine 5.5. It has three ready-made quadrotors for different research needs: a navigation drone with simplified flight (velocity and yaw rate), a physics drone (rigid-body dynamics with a built-in cascaded flight controller, velocity and attitude commands) and a bare airframe drone (the same dynamics, body-rate and motor commands only, the user writes the controller). It also has wind and keyboard/gamepad flight. It depends on `UBotCore ^0.1.0` and the engine plugin `EnhancedInput`; never on UBotSensor or UBotROS. UBotROS drives the drones through the uBotCore actuation interfaces.
+UBotAerial is the multirotor plugin of the uBot family for Unreal Engine 5.5. It has three ready-made quadrotors for different research needs: a navigation drone with simplified flight (velocity and yaw rate), a physics drone (rigid-body dynamics with a built-in cascaded flight controller, velocity and attitude commands) and a bare airframe drone (the same dynamics, body-rate and motor commands only, the user writes the controller). It also has wind and keyboard/gamepad flight. It depends on UBotCore (the attitude and motor command interfaces arrive in UBotCore 0.1.2) and the engine plugin `EnhancedInput`; never on UBotSensor or UBotROS. UBotROS drives the drones through the uBotCore actuation interfaces.
 
 `README.md` is the user manual, written in Chinese; keep its language. Code, comments and commit messages are English.
 
@@ -25,7 +25,11 @@ The plugin has no content: the drones are built from `/Engine/BasicShapes` in C+
 - `UBotMultirotorMath.h`: `UBot::Multirotor` (fixed-step clock `FFixedStepClock`, yaw and attitude helpers, velocity clamp, body-rate integration, specific force, quad X layout). `UBotSimpleFlightModel.h`: `UBot::SimpleFlight` (the navigation drone's model).
 - `UUBotMultirotorMovementComponent` (`UBotMultirotorMovementComponent.h`): abstract base. Steps the subclass model on the fixed-step clock, sweeps the root's collision shape (`Private/UBotMultirotorCollision.h`), handles contacts, landing and crashes, presents the extrapolated pose, implements `IUBotActuator` and `IUBotVelocityCommandable`. Subclasses override `SimulateStep`, `ResetModel`, `AcceptVelocityCommand`, `HandleStopMotion`.
 - `UUBotSimpleFlightComponent`: the navigation drone's flight model (velocity in the heading frame, bounded braking, tilt from acceleration, Visual/Body tilt).
-- `AUBotMultirotorPawn` (abstract) and `AUBotNavigationDrone`: the ready-made drones. Subclasses pick the movement class with `SetDefaultSubobjectClass(AUBotMultirotorPawn::MovementComponentName)`. `UUBotRotorComponent` spins the rotor meshes.
+- `UBotMultirotorDynamics.h`: `UBot::Multirotor` rigid body (`FRigidBodyState`, `StepRigidBody`: motor lag, rotor wrench, air-relative drag, semi-implicit Euler), rotor helpers and `FThrustAllocator` (pseudo-inverse with yaw-first desaturation). Airframe, setpoint and control-mode types are in `UBotAerialTypes.h`.
+- `UUBotMultirotorDynamicsComponent`: the physics drones' model. Control modes Velocity, Attitude, BodyRate and Motor (latest accepted command wins), command-loss actions, landing, take-off and crashes. Implements `IUBotAttitudeCommandable` and `IUBotMotorCommandable` from UBotCore.
+- `UUBotFlightController` (abstract, instanced) and `UUBotCascadedFlightController`: controllers return normalized motor commands per step; `Compute`/`Reset` call native implementations directly and Blueprint ones through the VM.
+- `UBotMultirotorDynamicsBackend.h`: experimental backend seam. `IUBotMultirotorDynamicsBackend` steps the body; factories (`IUBotMultirotorBackendFactory`) register at `UBot::Aerial::DynamicsBackendExtensionPoint`; the module registers `BuiltIn` (`Private/UBotBuiltInMultirotorBackend.h`).
+- `AUBotMultirotorPawn` (abstract), `AUBotNavigationDrone`, `AUBotPhysicsDrone`, `AUBotBareAirframeDrone`: the ready-made drones. Subclasses pick the movement class with `SetDefaultSubobjectClass(AUBotMultirotorPawn::MovementComponentName)`. `UUBotRotorComponent` spins the rotor meshes. `UUBotMultirotorLibrary` has Blueprint helpers.
 
 ## Design rules
 

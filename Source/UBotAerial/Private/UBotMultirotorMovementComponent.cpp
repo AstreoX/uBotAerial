@@ -338,6 +338,7 @@ FUBotMultirotorState UUBotMultirotorMovementComponent::GetMultirotorState() cons
     State.AngularVelocityRadiansPerSecond = AngularVelocity;
     State.LinearAccelerationMetersPerSecondSquared = LinearAcceleration;
     State.SpecificForceMetersPerSecondSquared = UBot::Multirotor::SpecificForce(Orientation, LinearAcceleration, Gravity);
+    GetRotorSpeeds(State.RotorSpeedsRadiansPerSecond);
     State.FlightState = FlightState;
     State.SimTimeSeconds = PhysicsClock.GetTimeSeconds();
     return State;

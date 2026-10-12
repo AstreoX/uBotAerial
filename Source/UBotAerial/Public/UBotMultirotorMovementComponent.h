@@ -158,6 +158,9 @@ protected:
     /** Rotor speed to show for the rotor with this index, rad/s. */
     virtual double GetVisualRotorSpeed(int32 RotorIndex) const { return 0.0; }
 
+    /** Rotor speeds reported in the state (motor order, rad/s); empty when the model has no rotors. */
+    virtual void GetRotorSpeeds(TArray<double>& OutSpeeds) const { OutSpeeds.Reset(); }
+
     /** Upper bound of the acceleration this model can reach, m/s² (sizes the free-space check per frame). */
     virtual double GetMaxAccelerationBound() const { return 50.0; }
 
