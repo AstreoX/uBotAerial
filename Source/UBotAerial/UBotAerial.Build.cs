@@ -12,12 +12,8 @@ public class UBotAerial : ModuleRules
             "CoreUObject",
             "Engine",
             "EnhancedInput",
+            "InputCore",
             "UBotCore"
-        });
-
-        PrivateDependencyModuleNames.AddRange(new[]
-        {
-            "InputCore"
         });
     }
 }

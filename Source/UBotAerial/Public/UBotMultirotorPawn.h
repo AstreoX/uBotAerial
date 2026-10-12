@@ -11,6 +11,7 @@ class USpringArmComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 class UUBotIdentityComponent;
+class UUBotMultirotorManualInputComponent;
 class UUBotMultirotorMovementComponent;
 class UUBotRotorComponent;
 
@@ -74,6 +75,10 @@ public:
     /** Robot id, ROS namespace and base frame of the drone. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Multirotor")
     TObjectPtr<UUBotIdentityComponent> Identity;
+
+    /** Keyboard and gamepad flight while a local player controls the drone. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Multirotor")
+    TObjectPtr<UUBotMultirotorManualInputComponent> ManualInput;
 
     /** The flight model (its class depends on the drone). */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Multirotor")

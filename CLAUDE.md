@@ -30,6 +30,8 @@ The plugin has no content: the drones are built from `/Engine/BasicShapes` in C+
 - `UUBotFlightController` (abstract, instanced) and `UUBotCascadedFlightController`: controllers return normalized motor commands per step; `Compute`/`Reset` call native implementations directly and Blueprint ones through the VM.
 - `UBotMultirotorDynamicsBackend.h`: experimental backend seam. `IUBotMultirotorDynamicsBackend` steps the body; factories (`IUBotMultirotorBackendFactory`) register at `UBot::Aerial::DynamicsBackendExtensionPoint`; the module registers `BuiltIn` (`Private/UBotBuiltInMultirotorBackend.h`).
 - `AUBotMultirotorPawn` (abstract), `AUBotNavigationDrone`, `AUBotPhysicsDrone`, `AUBotBareAirframeDrone`: the ready-made drones. Subclasses pick the movement class with `SetDefaultSubobjectClass(AUBotMultirotorPawn::MovementComponentName)`. `UUBotRotorComponent` spins the rotor meshes. `UUBotMultirotorLibrary` has Blueprint helpers.
+- `AUBotWind` and `UUBotWindSubsystem` (`UBot::Wind::FGustModel`: seeded sum of sines per axis): a uniform wind field the movement base samples every physics step.
+- `UUBotMultirotorManualInputComponent`: keyboard/gamepad flight while a local player possesses the pawn. Enhanced Input actions and the mapping context are created at run time from `UBot::ManualFlight::GetDefaultBindings()`; the axis-to-command mapping is plain functions in `UBot::ManualFlight`.
 
 ## Design rules
 

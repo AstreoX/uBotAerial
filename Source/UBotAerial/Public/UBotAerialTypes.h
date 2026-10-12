@@ -267,3 +267,61 @@ struct UBOTAERIAL_API FUBotFlightSetpoint
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Setpoint")
     double VerticalVelocityMetersPerSecond = 0.0;
 };
+
+/** Wind: a constant part plus gusts. The gusts are a sum of sines with seeded phases, so the same settings give the same wind at the same sim time. */
+USTRUCT(BlueprintType)
+struct UBOTAERIAL_API FUBotWindSettings
+{
+    GENERATED_BODY()
+
+    /** Steady wind velocity in the world frame, m/s (the direction the air moves). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind")
+    FVector ConstantVelocityMetersPerSecond = FVector::ZeroVector;
+
+    /** Standard deviation of the gusts per world axis, m/s. Zero turns gusts off. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind")
+    FVector GustStandardDeviationMetersPerSecond = FVector::ZeroVector;
+
+    /** Typical duration of a gust, s. Longer is smoother. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind", meta = (ClampMin = "0.05", Units = "Seconds"))
+    float GustCorrelationTimeSeconds = 2.0f;
+
+    /** Seed of the gust pattern. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind")
+    int32 Seed = 0;
+};
+
+/** How keyboard and gamepad input flies a multirotor. Append new values at the end. */
+UENUM(BlueprintType)
+enum class EUBotManualFlightMode : uint8
+{
+    /** Sticks command velocity in the heading frame and yaw rate (any drone that takes velocity commands). */
+    Velocity,
+    /** Sticks command tilt and yaw rate, the up axis commands climb rate (drones that take attitude commands). */
+    Angle,
+    /** Sticks command body rates, the up axis commands climb rate (drones that take body-rate commands). */
+    Rate
+};
+
+/** Manual flight input, each axis -1..1. */
+USTRUCT(BlueprintType)
+struct UBOTAERIAL_API FUBotManualFlightAxes
+{
+    GENERATED_BODY()
+
+    /** + forward. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Manual Input")
+    float Forward = 0.0f;
+
+    /** + right. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Manual Input")
+    float Right = 0.0f;
+
+    /** + up. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Manual Input")
+    float Up = 0.0f;
+
+    /** + yaw right. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Manual Input")
+    float Yaw = 0.0f;
+};

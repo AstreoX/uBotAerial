@@ -10,6 +10,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "UBotIdentityComponent.h"
+#include "UBotMultirotorManualInputComponent.h"
 #include "UBotMultirotorMovementComponent.h"
 #include "UBotRotorComponent.h"
 #include "UObject/ConstructorHelpers.h"
@@ -121,6 +122,7 @@ AUBotMultirotorPawn::AUBotMultirotorPawn(const FObjectInitializer& ObjectInitial
     Camera->FieldOfView = 80.0f;
 
     Identity = CreateDefaultSubobject<UUBotIdentityComponent>(TEXT("Identity"));
+    ManualInput = CreateDefaultSubobject<UUBotMultirotorManualInputComponent>(TEXT("ManualInput"));
 
     // Abstract here: each drone picks the class with SetDefaultSubobjectClass, so this is null only on the abstract base.
     Movement = CreateDefaultSubobject<UUBotMultirotorMovementComponent>(MovementComponentName);
