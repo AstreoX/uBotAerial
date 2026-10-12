@@ -19,6 +19,14 @@ UBotAerial is the multirotor plugin of the uBot family for Unreal Engine 5.5. It
 
 The plugin has no content: the drones are built from `/Engine/BasicShapes` in C++. Do not add `.uasset` files or third-party meshes.
 
+## Key types
+
+- `UBotAerialTypes.h`: enums (`EUBotMultirotorFlightState`, `EUBotMultirotorInitialState`, `EUBotSimpleFlightTiltMode`, `EUBotRotorSpinDirection`) and structs (`FUBotMultirotorVelocityLimits`, `FUBotMultirotorState`).
+- `UBotMultirotorMath.h`: `UBot::Multirotor` (fixed-step clock `FFixedStepClock`, yaw and attitude helpers, velocity clamp, body-rate integration, specific force, quad X layout). `UBotSimpleFlightModel.h`: `UBot::SimpleFlight` (the navigation drone's model).
+- `UUBotMultirotorMovementComponent` (`UBotMultirotorMovementComponent.h`): abstract base. Steps the subclass model on the fixed-step clock, sweeps the root's collision shape (`Private/UBotMultirotorCollision.h`), handles contacts, landing and crashes, presents the extrapolated pose, implements `IUBotActuator` and `IUBotVelocityCommandable`. Subclasses override `SimulateStep`, `ResetModel`, `AcceptVelocityCommand`, `HandleStopMotion`.
+- `UUBotSimpleFlightComponent`: the navigation drone's flight model (velocity in the heading frame, bounded braking, tilt from acceleration, Visual/Body tilt).
+- `AUBotMultirotorPawn` (abstract) and `AUBotNavigationDrone`: the ready-made drones. Subclasses pick the movement class with `SetDefaultSubobjectClass(AUBotMultirotorPawn::MovementComponentName)`. `UUBotRotorComponent` spins the rotor meshes.
+
 ## Design rules
 
 - **Sim time, fixed steps.** Flight models advance in fixed steps on uBot sim time (`UBot::Clock::GetSimTimeSeconds`), counted with an integer step index, never by summing frame deltas. Pause stops them, `UUBotClockSubsystem::StepSimulation` advances them exactly, and the same frame deltas give bit-identical results. No wall-clock time, no `FMath::Rand` (use a seeded `FRandomStream`), no looping timers.
