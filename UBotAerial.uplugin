@@ -1,0 +1,53 @@
+{
+    "FileVersion": 3,
+    "Version": 1,
+    "VersionName": "0.1.0",
+    "FriendlyName": "uBot Aerial",
+    "Description": "uBot multirotor drones: simplified flight for navigation research, rigid-body dynamics with velocity, attitude, body-rate and motor control for flight-control research, wind, and keyboard or gamepad flight. No ROS dependency.",
+    "Category": "uBot",
+    "CreatedBy": "AstreoX",
+    "CreatedByURL": "https://github.com/AstreoX",
+    "DocsURL": "https://github.com/AstreoX/uBotAerial",
+    "CanContainContent": false,
+    "IsBetaVersion": true,
+    "Plugins": [
+        {
+            "Name": "UBotCore",
+            "Enabled": true
+        },
+        {
+            "Name": "EnhancedInput",
+            "Enabled": true
+        }
+    ],
+    "Modules": [
+        {
+            "Name": "UBotAerial",
+            "Type": "Runtime",
+            "LoadingPhase": "Default"
+        }
+    ],
+    "UBot": {
+        "Layer": "Capability",
+        "Repository": "https://github.com/AstreoX/uBotAerial.git",
+        "Requires": [
+            {
+                "Name": "UBotCore",
+                "Version": "^0.1.0"
+            }
+        ],
+        "EnginePlugins": [
+            "EnhancedInput"
+        ],
+        "Provides": [
+            "Actuation.Velocity",
+            "Actuation.Attitude",
+            "Actuation.Motor",
+            "Body.Multirotor",
+            "Aerial.Wind"
+        ],
+        "Tags": [
+            "aerial"
+        ]
+    }
+}
