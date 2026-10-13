@@ -12,10 +12,6 @@
 
 namespace
 {
-    // Auto initial state: walkable ground at most this far below counts as standing on it, cm.
-    constexpr double GroundProbeCm = 5.0;
-    // Gap kept above the ground when snapping down, cm.
-    constexpr double GroundSkinCm = 0.1;
     // A presented pose that moved more than this was moved from outside.
     constexpr double TeleportToleranceCm = 1e-3;
     constexpr double TeleportToleranceQuat = 1e-6;
@@ -72,7 +68,7 @@ void UUBotMultirotorMovementComponent::StartFlight()
     LastVelocityCommand = FUBotVelocityCommand();
     bContactThisStep = false;
     bContactLastStep = false;
-    QueuedEvents.Reset();
+    QueuedImpacts.Reset();
     if (const UWorld* World = GetWorld())
     {
         Gravity = FVector(0.0, 0.0, World->GetGravityZ() / 100.0);
@@ -84,27 +80,10 @@ void UUBotMultirotorMovementComponent::StartFlight()
         Collision.Reset();
     }
 
-    bool bLanded = InitialState == EUBotMultirotorInitialState::Landed;
-    if (InitialState == EUBotMultirotorInitialState::Auto && Collision)
-    {
-        FHitResult Floor;
-        const double Distance = Collision->FindFloorDistance(PositionMeters * 100.0, Orientation, GroundProbeCm, &Floor);
-        if (Distance >= 0.0 && IsWalkable(Floor))
-        {
-            bLanded = true;
-            PositionMeters.Z -= FMath::Max(Distance - GroundSkinCm, 0.0) / 100.0;
-        }
-    }
-    if (bLanded)
-    {
-        // Resting on the ground means level.
-        Orientation = UBot::Multirotor::MakeYawQuat(UBot::Multirotor::GetYaw(Orientation));
-    }
-    FlightState = bLanded ? EUBotMultirotorFlightState::Landed : EUBotMultirotorFlightState::Flying;
-
     PhysicsClock.Reset(UBot::Clock::GetSimTimeSeconds(this), PhysicsRateHz);
     bFlightStarted = true;
-    ResetModel(bLanded);
+    bFirstFrame = true;
+    ResetModel();
 
     UpdatedComponent->SetWorldLocationAndRotation(PositionMeters * 100.0, Orientation, false, nullptr, ETeleportType::TeleportPhysics);
     LastPresentedTransform = UpdatedComponent->GetComponentTransform();
@@ -140,7 +119,9 @@ void UUBotMultirotorMovementComponent::TickComponent(float DeltaTime, ELevelTick
     PhysicsClock.SetRate(PhysicsRateHz);
     const int64 DroppedBefore = PhysicsClock.GetDroppedSteps();
     const int32 Steps = PhysicsClock.GetStepsDue(Now, MaxStepsPerFrame);
-    if (PhysicsClock.GetDroppedSteps() > DroppedBefore && !bDroppedStepsWarned)
+    const bool bFrameAfterStart = bFirstFrame;
+    bFirstFrame = false;
+    if (PhysicsClock.GetDroppedSteps() > DroppedBefore && !bDroppedStepsWarned && !bFrameAfterStart)
     {
         bDroppedStepsWarned = true;
         UE_LOG(LogUBotAerial, Warning, TEXT("%s: a frame needed more than %d physics steps; the extra time was skipped. Raise Max Steps Per Frame or lower Physics Rate Hz."),
@@ -153,7 +134,7 @@ void UUBotMultirotorMovementComponent::TickComponent(float DeltaTime, ELevelTick
         const double Span = Steps * StepSeconds;
         // One overlap test per frame: when nothing is within reach, the per-step sweeps would find nothing either.
         bFreeSpaceThisFrame = true;
-        if (Collision && FlightState != EUBotMultirotorFlightState::Landed)
+        if (Collision)
         {
             const double ReachCm = (LinearVelocity.Size() * Span + 0.5 * GetMaxAccelerationBound() * Span * Span) * 100.0 + 2.0;
             bFreeSpaceThisFrame = Collision->IsClear(PositionMeters * 100.0, Orientation, ReachCm);
@@ -202,8 +183,8 @@ void UUBotMultirotorMovementComponent::PresentPose(double NowSeconds, double Fra
     // Physics runs up to one step behind sim time; show the pose at sim time so sensors that
     // differentiate poses frame by frame see smooth motion.
     const double Ahead = FMath::Clamp(NowSeconds - PhysicsClock.GetTimeSeconds(), 0.0, PhysicsClock.GetStepSeconds());
-    const bool bExtrapolate = FlightState == EUBotMultirotorFlightState::Flying && !bContactLastStep;
-    const FTransform Presented = ComputePresentedTransform(bExtrapolate ? Ahead : 0.0);
+    // Not into a surface it is touching.
+    const FTransform Presented = ComputePresentedTransform(bContactLastStep ? 0.0 : Ahead);
     UpdatedComponent->SetWorldLocationAndRotation(Presented.GetLocation(), Presented.GetRotation(), false, nullptr, ETeleportType::None);
     LastPresentedTransform = UpdatedComponent->GetComponentTransform();
     Velocity = LinearVelocity * 100.0;
@@ -224,27 +205,16 @@ void UUBotMultirotorMovementComponent::UpdateVisuals(double FrameSeconds)
 
 void UUBotMultirotorMovementComponent::BroadcastQueuedEvents()
 {
-    if (QueuedEvents.IsEmpty())
+    if (QueuedImpacts.IsEmpty())
     {
         return;
     }
-    // Handlers may command the drone again; they see the events of this frame in order.
-    TArray<FQueuedEvent> Events = MoveTemp(QueuedEvents);
-    QueuedEvents.Reset();
-    for (const FQueuedEvent& Event : Events)
+    // Handlers may command the drone again; they see the impacts of this frame in order.
+    TArray<FQueuedImpact> Impacts = MoveTemp(QueuedImpacts);
+    QueuedImpacts.Reset();
+    for (const FQueuedImpact& Impact : Impacts)
     {
-        switch (Event.Kind)
-        {
-        case FQueuedEvent::EKind::StateChanged:
-            OnFlightStateChanged.Broadcast(Event.NewState, Event.PreviousState);
-            break;
-        case FQueuedEvent::EKind::Impact:
-            OnImpact.Broadcast(Event.Hit, Event.Speed);
-            break;
-        case FQueuedEvent::EKind::Crashed:
-            OnCrashed.Broadcast(Event.Hit, Event.Speed);
-            break;
-        }
+        OnImpact.Broadcast(Impact.Hit, Impact.Speed);
     }
 }
 
@@ -290,43 +260,13 @@ double UUBotMultirotorMovementComponent::ApplyContacts(const FUBotMultirotorCont
         InOutVelocity *= FMath::Max(0.0, 1.0 - ContactFriction * MaxImpact / Sliding);
     }
 
-    if (Strongest)
+    if (Strongest && !bContactLastStep && MaxImpact >= ImpactEventMinSpeedMetersPerSecond)
     {
-        if (!bContactLastStep && MaxImpact >= ImpactEventMinSpeedMetersPerSecond)
-        {
-            FQueuedEvent& Event = QueuedEvents.AddDefaulted_GetRef();
-            Event.Kind = FQueuedEvent::EKind::Impact;
-            Event.Hit = *Strongest;
-            Event.Speed = static_cast<float>(MaxImpact);
-        }
-        if (CrashImpactSpeedMetersPerSecond > 0.0f && MaxImpact >= CrashImpactSpeedMetersPerSecond && FlightState != EUBotMultirotorFlightState::Crashed)
-        {
-            SetFlightState(EUBotMultirotorFlightState::Crashed);
-            FQueuedEvent& Event = QueuedEvents.AddDefaulted_GetRef();
-            Event.Kind = FQueuedEvent::EKind::Crashed;
-            Event.Hit = *Strongest;
-            Event.Speed = static_cast<float>(MaxImpact);
-        }
+        FQueuedImpact& Impact = QueuedImpacts.AddDefaulted_GetRef();
+        Impact.Hit = *Strongest;
+        Impact.Speed = static_cast<float>(MaxImpact);
     }
     return MaxImpact;
-}
-
-bool UUBotMultirotorMovementComponent::IsWalkable(const FHitResult& Hit) const
-{
-    return Hit.Normal.Z >= FMath::Cos(FMath::DegreesToRadians(FMath::Clamp(MaxLandingSlopeDegrees, 0.0f, 89.0f)));
-}
-
-void UUBotMultirotorMovementComponent::SetFlightState(EUBotMultirotorFlightState NewState)
-{
-    if (NewState == FlightState)
-    {
-        return;
-    }
-    FQueuedEvent& Event = QueuedEvents.AddDefaulted_GetRef();
-    Event.Kind = FQueuedEvent::EKind::StateChanged;
-    Event.NewState = NewState;
-    Event.PreviousState = FlightState;
-    FlightState = NewState;
 }
 
 void UUBotMultirotorMovementComponent::GetRotorLayout(TArray<FVector>& PositionsMeters, TArray<EUBotRotorSpinDirection>& SpinDirections) const
@@ -350,7 +290,6 @@ FUBotMultirotorState UUBotMultirotorMovementComponent::GetMultirotorState() cons
     State.LinearAccelerationMetersPerSecondSquared = LinearAcceleration;
     State.SpecificForceMetersPerSecondSquared = UBot::Multirotor::SpecificForce(Orientation, LinearAcceleration, Gravity);
     GetRotorSpeeds(State.RotorSpeedsRadiansPerSecond);
-    State.FlightState = FlightState;
     State.SimTimeSeconds = PhysicsClock.GetTimeSeconds();
     return State;
 }
@@ -361,12 +300,7 @@ void UUBotMultirotorMovementComponent::ResetFlight()
     {
         return;
     }
-    const EUBotMultirotorFlightState Previous = FlightState;
     StartFlight();
-    if (FlightState != Previous)
-    {
-        OnFlightStateChanged.Broadcast(FlightState, Previous);
-    }
 }
 
 void UUBotMultirotorMovementComponent::TeleportMultirotor(FVector NewLocation, FRotator NewRotation, bool bStopMotion)
@@ -384,11 +318,7 @@ void UUBotMultirotorMovementComponent::TeleportMultirotor(FVector NewLocation, F
         LinearVelocity = FVector::ZeroVector;
         AngularVelocity = FVector::ZeroVector;
         LinearAcceleration = FVector::ZeroVector;
-        if (FlightState == EUBotMultirotorFlightState::Landed)
-        {
-            SetFlightState(EUBotMultirotorFlightState::Flying);
-        }
-        ResetModel(false);
+        ResetModel();
     }
     else
     {
@@ -408,13 +338,12 @@ FName UUBotMultirotorMovementComponent::GetActuatorType_Implementation() const
 
 bool UUBotMultirotorMovementComponent::IsActuatorReady_Implementation() const
 {
-    return HasBegunPlay() && UpdatedComponent != nullptr && FlightState != EUBotMultirotorFlightState::Crashed;
+    return HasBegunPlay() && UpdatedComponent != nullptr;
 }
 
 bool UUBotMultirotorMovementComponent::ApplyVelocityCommand_Implementation(const FUBotVelocityCommand& Command)
 {
-    if (Command.LinearVelocityMetersPerSecond.ContainsNaN() || Command.AngularVelocityRadiansPerSecond.ContainsNaN()
-        || FlightState == EUBotMultirotorFlightState::Crashed)
+    if (Command.LinearVelocityMetersPerSecond.ContainsNaN() || Command.AngularVelocityRadiansPerSecond.ContainsNaN())
     {
         return false;
     }

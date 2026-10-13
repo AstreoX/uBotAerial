@@ -14,19 +14,6 @@ namespace
     constexpr int32 MaxSweeps = 4;
 }
 
-const FHitResult* FUBotMultirotorContacts::FindFloor() const
-{
-    const FHitResult* Floor = nullptr;
-    for (const FHitResult& Hit : Hits)
-    {
-        if (!Floor || Hit.Normal.Z > Floor->Normal.Z)
-        {
-            Floor = &Hit;
-        }
-    }
-    return Floor;
-}
-
 bool FUBotMultirotorCollision::Initialize(const UPrimitiveComponent* Primitive)
 {
     World.Reset();
@@ -99,24 +86,4 @@ FVector FUBotMultirotorCollision::Move(const FVector& StartCm, const FVector& De
         }
     }
     return Location;
-}
-
-double FUBotMultirotorCollision::FindFloorDistance(const FVector& LocationCm, const FQuat& Rotation, double MaxDistanceCm, FHitResult* OutHit) const
-{
-    UWorld* QueryWorld = World.Get();
-    if (!QueryWorld)
-    {
-        return -1.0;
-    }
-    FHitResult Hit;
-    const FVector End = LocationCm - FVector(0.0, 0.0, FMath::Max(MaxDistanceCm, 0.0));
-    if (!QueryWorld->SweepSingleByChannel(Hit, LocationCm, End, Rotation, Channel, Shape, QueryParams, ResponseParams) || !Hit.bBlockingHit)
-    {
-        return -1.0;
-    }
-    if (OutHit)
-    {
-        *OutHit = Hit;
-    }
-    return Hit.bStartPenetrating ? 0.0 : FMath::Max(LocationCm.Z - Hit.Location.Z, 0.0);
 }

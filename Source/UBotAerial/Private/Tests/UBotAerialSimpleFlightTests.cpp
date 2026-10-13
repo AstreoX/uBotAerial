@@ -49,7 +49,6 @@ bool FUBotAerialSimpleFlightStepResponseTest::RunTest(const FString& Parameters)
     {
         return false;
     }
-    TestEqual(TEXT("Starts flying in the air"), Hover.Flight->GetFlightState(), EUBotMultirotorFlightState::Flying);
     TestTrue(TEXT("Velocity command accepted"), SendVelocity(*Hover.Flight, FVector(2.0, 0.0, 0.0)));
 
     double MaxSpeed = 0.0;

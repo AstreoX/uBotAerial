@@ -17,8 +17,6 @@ namespace UBotAerialCollisionTests
     {
         TStrongObjectPtr<UUBotAerialTestListener> Listener(NewObject<UUBotAerialTestListener>());
         Movement.OnImpact.AddDynamic(Listener.Get(), &UUBotAerialTestListener::HandleImpact);
-        Movement.OnCrashed.AddDynamic(Listener.Get(), &UUBotAerialTestListener::HandleCrash);
-        Movement.OnFlightStateChanged.AddDynamic(Listener.Get(), &UUBotAerialTestListener::HandleStateChanged);
         return Listener;
     }
 
@@ -56,8 +54,6 @@ bool FUBotAerialCollisionWallStopTest::RunTest(const FString& Parameters)
         TestEqual(TEXT("Impact at the approach speed"), Listener->ImpactSpeeds[0], 1.0f, 0.05f);
         TestTrue(TEXT("Normal points back"), Listener->LastImpactNormal.Equals(FVector(-1.0, 0.0, 0.0), 1e-3));
     }
-    TestEqual(TEXT("No crash (Simple Flight never crashes by default)"), Listener->CrashSpeeds.Num(), 0);
-    TestEqual(TEXT("Still flying"), Flight->GetFlightState(), EUBotMultirotorFlightState::Flying);
     TestEqual(TEXT("Did not move sideways"), State.PositionMeters.Y, 0.0, 1e-6);
     return true;
 }
@@ -86,9 +82,9 @@ bool FUBotAerialCollisionSlideTest::RunTest(const FString& Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialCollisionLandTakeOffTest, "UBotAerial.Collision.LandAndTakeOff", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialCollisionFloorTest, "UBotAerial.Collision.FloorIsASurface", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FUBotAerialCollisionLandTakeOffTest::RunTest(const FString& Parameters)
+bool FUBotAerialCollisionFloorTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialCollisionTests;
     FScopedAerialTestWorld Scope;
@@ -100,87 +96,58 @@ bool FUBotAerialCollisionLandTakeOffTest::RunTest(const FString& Parameters)
         return false;
     }
     TStrongObjectPtr<UUBotAerialTestListener> Listener = Listen(*Flight);
-    TestEqual(TEXT("Starts flying 1 m up"), Flight->GetFlightState(), EUBotMultirotorFlightState::Flying);
 
+    // Descending onto the floor: it stops there, like at any other surface.
     SendVelocity(*Flight, FVector(0.0, 0.0, -1.0));
-    double LandedAt = -1.0;
-    double FirstContactAt = -1.0;
-    Scope.RunFor(3.0, FrameSeconds, [&] {
-        if (FirstContactAt < 0.0 && Listener->ImpactSpeeds.Num() > 0)
-        {
-            FirstContactAt = Scope.Now();
-        }
-        if (LandedAt < 0.0 && Flight->IsLanded())
-        {
-            LandedAt = Scope.Now();
-        }
-    });
-    TestTrue(TEXT("Landed"), Flight->IsLanded());
-    TestTrue(FString::Printf(TEXT("Landed within 0.1 s of touching (%.3f, %.3f)"), FirstContactAt, LandedAt),
-        FirstContactAt > 0.0 && LandedAt >= 0.0 && LandedAt - FirstContactAt <= 0.1);
-    const FUBotMultirotorState Landed = Flight->GetMultirotorState();
-    TestEqual(TEXT("Resting on the floor"), Landed.PositionMeters.Z * 100.0, HalfHeightCm, 0.2);
-    TestTrue(TEXT("Not moving"), Landed.LinearVelocityMetersPerSecond.IsZero());
-    TestTrue(TEXT("Level"), Landed.Orientation.Equals(FQuat::Identity, 1e-9));
-    TestEqual(TEXT("Rotors stopped"), Drone->Rotors[0]->GetRotorSpeed(), 0.0f);
-    TestTrue(TEXT("Specific force +g on the ground"), Landed.SpecificForceMetersPerSecondSquared.Equals(-Scope.Gravity(), 1e-9));
+    Scope.RunFor(3.0);
+    const FUBotMultirotorState OnFloor = Flight->GetMultirotorState();
+    TestEqual(TEXT("Stopped on the floor"), OnFloor.PositionMeters.Z * 100.0, HalfHeightCm, 0.2);
+    TestTrue(FString::Printf(TEXT("No speed into the floor (%.4f)"), OnFloor.LinearVelocityMetersPerSecond.Z), OnFloor.LinearVelocityMetersPerSecond.Z > -0.05);
+    TestEqual(TEXT("One impact event"), Listener->ImpactSpeeds.Num(), 1);
+    TestTrue(TEXT("Rotors keep spinning"), Drone->Rotors[0]->GetRotorSpeed() > 100.0f);
 
-    // Horizontal and descent commands do not move a landed drone.
+    // On the floor it still follows commands: forward (while still pressing down) slides along the floor.
     SendVelocity(*Flight, FVector(1.0, 0.0, -0.5));
-    Scope.RunFor(1.0);
-    TestTrue(TEXT("Still landed in place"), Flight->IsLanded() && Flight->GetMultirotorState().PositionMeters == Landed.PositionMeters);
+    Scope.RunFor(2.0);
+    const FUBotMultirotorState Slid = Flight->GetMultirotorState();
+    TestTrue(FString::Printf(TEXT("Moved forward along the floor (%.3f m)"), Slid.PositionMeters.X - OnFloor.PositionMeters.X),
+        Slid.PositionMeters.X - OnFloor.PositionMeters.X >= 1.0);
+    TestEqual(TEXT("Still on the floor"), Slid.PositionMeters.Z * 100.0, HalfHeightCm, 0.3);
 
-    // A climb command takes off.
+    // A climb command climbs at once.
     SendVelocity(*Flight, FVector(0.0, 0.0, 1.0));
-    double TookOffAt = -1.0;
-    const double CommandAt = Scope.Now();
-    Scope.RunFor(2.5, FrameSeconds, [&] {
-        if (TookOffAt < 0.0 && !Flight->IsLanded())
-        {
-            TookOffAt = Scope.Now() - CommandAt;
-        }
-    });
-    TestTrue(FString::Printf(TEXT("Took off within 0.5 s (%.3f)"), TookOffAt), TookOffAt >= 0.0 && TookOffAt <= 0.5);
-    TestTrue(FString::Printf(TEXT("At least 1 m up after 2.5 s (%.3f)"), Flight->GetMultirotorState().PositionMeters.Z), Flight->GetMultirotorState().PositionMeters.Z >= 1.0);
-    TestTrue(TEXT("Rotors spin when flying"), Drone->Rotors[0]->GetRotorSpeed() > 100.0f);
-    TestTrue(TEXT("State changes Landed then Flying"), Listener->States.Num() == 2 && Listener->States[0] == EUBotMultirotorFlightState::Landed
-        && Listener->States[1] == EUBotMultirotorFlightState::Flying);
+    Scope.RunFor(0.5);
+    TestTrue(FString::Printf(TEXT("Climbing after 0.5 s (%.3f m)"), Flight->GetMultirotorState().PositionMeters.Z),
+        Flight->GetMultirotorState().PositionMeters.Z >= HalfHeightCm / 100.0 + 0.15);
+    Scope.RunFor(2.0);
+    TestTrue(FString::Printf(TEXT("At least 1 m up after 2.5 s (%.3f)"), Flight->GetMultirotorState().PositionMeters.Z),
+        Flight->GetMultirotorState().PositionMeters.Z >= 1.0);
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialCollisionInitialStateTest, "UBotAerial.Collision.InitialState", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialCollisionStartOnFloorTest, "UBotAerial.Collision.StartOnFloor", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FUBotAerialCollisionInitialStateTest::RunTest(const FString& Parameters)
+bool FUBotAerialCollisionStartOnFloorTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialCollisionTests;
     FScopedAerialTestWorld Scope;
     Scope.SpawnFloor(0.0);
 
-    // 2 cm above the floor: Auto lands and snaps down.
-    AUBotAerialTestNavigationDrone* Low = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, HalfHeightCm + 2.0));
-    TestTrue(TEXT("Auto starts landed near the ground"), Low && Low->GetSimpleFlight()->IsLanded());
-    if (Low)
+    // Placed on the floor, it hovers where it is: no snapping, no sinking.
+    const FVector Start(0.0, 0.0, HalfHeightCm + 0.5);
+    AUBotAerialTestNavigationDrone* Ground = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(Start);
+    if (!TestNotNull(TEXT("Drone on the floor"), Ground))
     {
-        TestEqual(TEXT("Snapped onto the floor"), Low->GetActorLocation().Z, HalfHeightCm + 0.1, 0.05);
+        return false;
     }
+    Scope.RunFor(1.0);
+    TestTrue(FString::Printf(TEXT("Stays where it was placed (%s)"), *Ground->GetActorLocation().ToString()), Ground->GetActorLocation().Equals(Start, 1e-3));
+    SendVelocity(*Ground->GetSimpleFlight(), FVector(1.0, 0.0, 0.0));
+    Scope.RunFor(1.0);
+    TestTrue(FString::Printf(TEXT("Moves off at once (%.3f m)"), Ground->GetActorLocation().X / 100.0), Ground->GetActorLocation().X >= 50.0);
 
-    // 3 m up: Auto hovers.
+    // Reset Flight stops the drone where it is.
     AUBotAerialTestNavigationDrone* High = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(500.0, 0.0, 300.0));
-    TestTrue(TEXT("Auto hovers in the air"), High && High->GetSimpleFlight()->GetFlightState() == EUBotMultirotorFlightState::Flying);
-
-    // Hovering on the ground stays flying; Landed in the air stays landed until a climb.
-    AUBotAerialTestNavigationDrone* Hovering = Scope.Spawn<AUBotAerialTestNavigationDrone>(FVector(1000.0, 0.0, HalfHeightCm + 2.0));
-    Hovering->GetSimpleFlight()->InitialState = EUBotMultirotorInitialState::Hovering;
-    Hovering->DispatchBeginPlay();
-    TestEqual(TEXT("Hovering forced"), Hovering->GetSimpleFlight()->GetFlightState(), EUBotMultirotorFlightState::Flying);
-    AUBotAerialTestNavigationDrone* Parked = Scope.Spawn<AUBotAerialTestNavigationDrone>(FVector(1500.0, 0.0, 300.0));
-    Parked->GetSimpleFlight()->InitialState = EUBotMultirotorInitialState::Landed;
-    Parked->DispatchBeginPlay();
-    Scope.RunFor(0.5);
-    TestTrue(TEXT("Landed forced"), Parked->GetSimpleFlight()->IsLanded());
-    TestEqual(TEXT("Landed does not fall"), Parked->GetActorLocation().Z, 300.0, 1e-6);
-
-    // Reset Flight starts again from the current pose.
     if (High)
     {
         SendVelocity(*High->GetSimpleFlight(), FVector(2.0, 0.0, 0.0));

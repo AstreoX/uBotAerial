@@ -169,7 +169,6 @@ bool FUBotAerialDynamicsHoverTest::RunTest(const FString& Parameters)
     {
         return false;
     }
-    TestEqual(TEXT("Hovers on its own"), Drone.Dynamics->GetFlightState(), EUBotMultirotorFlightState::Flying);
     const FVector Start = Drone.Position();
     double MaxDz = 0.0;
     double MaxDxy = 0.0;
@@ -348,9 +347,8 @@ bool FUBotAerialDynamicsCommandLossTest::RunTest(const FString& Parameters)
         TestEqual(TEXT("Back to velocity mode"), Drone.Dynamics->GetActiveControlMode(), EUBotFlightControlMode::Velocity);
         Drone.Scope.RunFor(5.0);
         TestTrue(FString::Printf(TEXT("Hovering after release (%.4f)"), Drone.Velocity().Size()), Drone.Velocity().Size() < 0.05);
-        TestEqual(TEXT("Still flying"), Drone.Dynamics->GetFlightState(), EUBotMultirotorFlightState::Flying);
     }
-    // Land: the drone descends in place and lands.
+    // Land: the drone descends in place until the floor stops it, and stays powered there.
     {
         FPhysics Drone(300.0, [](UUBotMultirotorDynamicsComponent& Dynamics) { Dynamics.CommandLossAction = EUBotCommandLossAction::Land; });
         Drone.Scope.SpawnFloor(0.0);
@@ -359,10 +357,12 @@ bool FUBotAerialDynamicsCommandLossTest::RunTest(const FString& Parameters)
         const FVector Start = Drone.Position();
         IUBotMotorCommandable::Execute_ReleaseMotorCommand(Drone.Dynamics);
         Drone.Scope.RunFor(8.0);
-        TestTrue(TEXT("Landed"), Drone.Dynamics->IsLanded());
-        TestTrue(FString::Printf(TEXT("Landed below where it was (%s)"), *Drone.Position().ToString()),
-            FVector2D(Drone.Position() - Start).Size() < 0.3 && Drone.Position().Z < 0.2);
-        TestTrue(TEXT("Motors stopped on the ground"), Drone.State().RotorSpeedsRadiansPerSecond[0] < 1.0);
+        TestTrue(FString::Printf(TEXT("On the floor below where it was (%s)"), *Drone.Position().ToString()),
+            FVector2D(Drone.Position() - Start).Size() < 0.3 && Drone.Position().Z < 0.1);
+        TestTrue(FString::Printf(TEXT("At rest (%.4f)"), Drone.Velocity().Size()), Drone.Velocity().Size() < 0.05);
+        const double Hover = HoverRotorSpeed(Drone.Scope);
+        TestTrue(FString::Printf(TEXT("Motors still at hover on the floor (%.1f)"), Drone.State().RotorSpeedsRadiansPerSecond[0]),
+            FMath::Abs(Drone.State().RotorSpeedsRadiansPerSecond[0] / Hover - 1.0) < 0.05);
     }
     // Cut Motors: the drone falls.
     {

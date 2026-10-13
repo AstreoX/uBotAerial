@@ -73,11 +73,11 @@ C++ 工程使用时，在自己模块的 `Build.cs` 中加入 `"UBotCore"` 和 `
 先看演示地图：
 
 1. 在 Content Browser 里打开 `Settings > Show Plugin Content`，才看得到插件的内容。
-2. 打开 `/UBotAerial/Maps/L_UBotAerialDemo`，点「Play」。地图里的物理无人机已设为由 Player 0 控制：Space 起飞，W / A / S / D 平移，E / Q 偏航，Left Ctrl 下降。要飞另一架，把 `Auto Possess Player` 移到它身上，见“演示地图”。
+2. 打开 `/UBotAerial/Maps/L_UBotAerialDemo`，点「Play」。地图里的物理无人机已设为由 Player 0 控制：Space 上升，W / A / S / D 平移，E / Q 偏航，Left Ctrl 下降。要飞另一架，把 `Auto Possess Player` 移到它身上，见“演示地图”。
 
 放进自己的关卡：
 
-1. 把 `/UBotAerial/Examples/BP_UBotNavigationDrone` 拖进关卡。`InitialState` 默认是 `Auto`：脚下 5 cm 以内有可着陆的地面时落地待命，否则悬停。
+1. 把 `/UBotAerial/Examples/BP_UBotNavigationDrone` 拖进关卡。无人机在放置的位置悬停（放在地面上就停在地面上），任何指令都会让它立即动起来。
 2. 让玩家控制它：在 Details 里把 `Auto Possess Player` 设为 Player 0，或在 GameMode 里把 `Default Pawn Class` 设为它。
 3. 点「Play」，按键同上。
 4. 不用玩家控制时，在蓝图里用 `Find Multirotor Movement`（或对无人机用 `Get Component by Class`）取得 `Movement` 组件，对它调用 `Apply Velocity Command`：`Linear Velocity Meters Per Second` 填 (2, 0, 0)，`Angular Velocity Radians Per Second` 填 (0, 0, 0.5)。无人机以 2 m/s 前进并向右偏航，直到新指令替换它或调用 `Stop Motion`。
@@ -97,7 +97,6 @@ C++ 工程使用时，在自己模块的 `Build.cs` 中加入 `"UBotCore"` 和 `
 | 接受的指令 | 速度 + 偏航角速度 | 速度、姿态、角速度、电机 | 角速度、电机 |
 | 拒绝的指令 | 姿态、角速度、电机（没有对应接口） | 无 | 速度、姿态 |
 | 物理步频 `PhysicsRateHz` | 500 Hz | 1000 Hz | 1000 Hz |
-| 坠毁速度 `CrashImpactSpeedMetersPerSecond` | 0（不会坠毁） | 3 m/s | 3 m/s |
 | 示例里的手动飞行模式 | `Velocity` | `Velocity` | `Rate` |
 | 旋翼转速 | 只用于显示 | 真实的电机转速 | 真实的电机转速 |
 | 风 | 简化响应 | 相对空气的阻力 | 相对空气的阻力 |
@@ -118,7 +117,7 @@ C++ 工程使用时，在自己模块的 `Build.cs` 中加入 `"UBotCore"` 和 `
 
 `/UBotAerial/Maps/L_UBotAerialDemo` 里有：
 
-- 一块大的网格地面、一堵墙、一堵 45° 的斜墙（用来沿墙滑动）、一个 1 m 高的着陆平台和一根立柱；
+- 一块大的网格地面、一堵墙、一堵 45° 的斜墙（用来沿墙滑动）、一个 1 m 高的平台和一根立柱；
 - 三个示例无人机并排，各有名称标签；墙上有操作提示；
 - 一个默认关闭的 `uBot Wind`：恒定风 (0, 5, 0) m/s，阵风标准差 (1, 1, 0.3) m/s。把它打开，可以看到物理无人机迎风倾斜；
 - World Settings 的 `GameMode Override` 是 `GameModeBase`；物理无人机的 `Auto Possess Player` 是 Player 0。
@@ -183,11 +182,8 @@ C++ 工程使用时，在自己模块的 `Build.cs` 中加入 `"UBotCore"` 和 `
 | `PhysicsRateHz` | 导航 500，物理 1000 | 每秒物理步数，限制在 [100, 4000] |
 | `MaxStepsPerFrame` | 250 | 一帧最多跑的物理步数。需要更多时多出的时间被跳过，日志只警告一次 |
 | `VelocityLimits` | 水平 10 m/s，爬升 3 m/s，下降 2 m/s，偏航 π/2 rad/s | 速度指令超过时被截断，水平方向保持不变 |
-| `InitialState` | `Auto` | 开始和 `Reset Flight` 之后怎么起步，见“碰撞、起降与坠毁” |
-| `CrashImpactSpeedMetersPerSecond` | 导航 0，物理 3 | 沿表面法线的撞击速度达到它就坠毁；0 永不坠毁 |
 | `ImpactEventMinSpeedMetersPerSecond` | 0.3 m/s | 慢于它的撞击不触发 `OnImpact` |
 | `ContactFriction` | 0.3 | 接触时滑动速度减少撞击速度的这个比例 |
-| `MaxLandingSlopeDegrees` | 30° | 可以着陆的最大坡度 |
 | `bEnableWind` | 开 | 这架无人机是否受 `uBot Wind` 影响 |
 | `ActuatorId` | 空 | 空则取 `uBot Identity` 的机器人 ID（没有身份组件时取 Actor 名）。执行器类型是 `Multirotor` |
 
@@ -318,7 +314,7 @@ kT、kQ 是转子的 `ThrustCoefficient` 和 `TorqueCoefficient`，k1、k2、k_a
 | `BodyRate` | `FUBotBodyRateCommand` | 机体系目标角速度（不截断），推力或爬升率同上 |
 | `Motor` | `FUBotMotorCommand` | 每个电机一个值：`Normalized`（0 到 1）或 `AngularVelocity`（rad/s）。值的个数必须等于电机数（`Get Motor Count`，默认机架 4 个），含 NaN 拒绝；不经过飞控 |
 
-每种指令的接受都可以用 `bAcceptVelocityCommands`、`bAcceptAttitudeCommands`、`bAcceptBodyRateCommands`、`bAcceptMotorCommands` 单独关闭，关闭后接口返回 `false`。已坠毁的无人机拒绝所有指令。
+每种指令的接受都可以用 `bAcceptVelocityCommands`、`bAcceptAttitudeCommands`、`bAcceptBodyRateCommands`、`bAcceptMotorCommands` 单独关闭，关闭后接口返回 `false`。
 
 ### 内置飞控
 
@@ -360,7 +356,7 @@ kT、kQ 是转子的 `ThrustCoefficient` 和 `TorqueCoefficient`，k1、k2、k_a
 | `CommandLossAction` | 效果 |
 | --- | --- |
 | `Hover`（默认） | 刹停并锁定位置，与 `Stop Motion` 相同 |
-| `Land` | 原地以 `LandingSpeedMetersPerSecond`（默认 0.7 m/s）下降到落地 |
+| `Land` | 原地以 `LandingSpeedMetersPerSecond`（默认 0.7 m/s）下降，被地面挡住后停在那里（电机保持悬停） |
 | `CutMotors` | 所有电机指令置 0，无人机下落 |
 
 `CommandTimeoutSeconds` 默认 0，即不超时，由发送方负责（uBot ROS 的指令组件自带超时，默认 0.5 s）。大于 0 时，最后一条被接受的指令（任何类型）距今超过这么多仿真秒就算丢失，每条指令后只触发一次。
@@ -378,6 +374,7 @@ kT、kQ 是转子的 `ThrustCoefficient` 和 `TorqueCoefficient`，k1、k2、k_a
 | 姿态跟踪 | 横滚 10°：0.5 s 内误差 1° 以内，超调不超过 3°，高度偏差 0.1 m 以内；偏航 45°：2 s 内误差 2° 以内 |
 | 角速度跟踪 | 1 rad/s 的横滚角速度：0.15 s 内误差 10% 以内，0.5 s 内 2% 以内；指令置零后 0.2 s 内转动低于 0.05 rad/s |
 | 电机全为 0（关闭阻力） | 以 g 自由下落，加速度误差 0.005 m/s² 以内，加速度计读数低于 0.05 m/s² |
+| 指令丢失，`CommandLossAction` 为 `Land` | 下降到原位置下方的地面上（水平漂移小于 0.3 m，中心高低于 10 cm），静止（速度低于 0.05 m/s），电机转速与悬停转速相差不超过 5% |
 
 ## 裸机架无人机
 
@@ -398,7 +395,7 @@ kT、kQ 是转子的 `ThrustCoefficient` 和 `TorqueCoefficient`，k1、k2、k_a
 | `Reset Controller(State, Airframe)` | 清空记忆（积分器、设定值）并取得机架 |
 | `Supports Control Mode(Mode)` | 这个控制器是否飞 `Mode` 的设定值；返回 `false` 的模式由内置飞控代飞 |
 
-`Reset Controller` 在首次使用、更换控制器、控制模式切换、`Reset Flight` 和落地之后，在下一次计算前被调用。电机模式不经过控制器。
+`Reset Controller` 在首次使用、更换控制器、控制模式切换、`Reset Flight` 之后，在下一次计算前被调用。电机模式不经过控制器。
 
 `FUBotFlightSetpoint` 里按模式生效的字段：
 
@@ -513,7 +510,7 @@ if (UObject* Target = UBot::Actuation::FindVelocityCommandable(Drone))
     Command.Source = TEXT("MyCode");
     if (!IUBotVelocityCommandable::Execute_ApplyVelocityCommand(Target, Command))
     {
-        // 被拒绝：已坠毁、这种指令被关闭、含 NaN
+        // 被拒绝：这种指令被关闭、含 NaN
     }
 }
 
@@ -635,46 +632,29 @@ ros2 topic pub -r 50 /drone/cmd_attitude mavros_msgs/msg/AttitudeTarget "{type_m
 | 物理 / 裸机架 | 风通过相对空气的速度进入阻力公式。悬停时内置飞控的位置保持把无人机拉回，机体向来风方向倾斜 | 悬停时遇到 5 m/s 恒定风：被推开不超过 1 m（且超过 0.1 m），10 s 后速度低于 0.05 m/s，倾角 7.7°（误差 1° 以内），推力指向来风方向；关闭 `bEnableWind` 后倾角回到 0.5° 以内 |
 | 导航 | 恒定风被补偿，不产生位移。风速变化时无人机先随风漂移，再按 `WindRejectionTimeConstantSeconds` 补偿；漂移速度是风速变化的 `WindResponse` 倍 | 3 m/s 的风速阶跃：最大漂移超过 1 m 且不超过 1.52 m（上限 0.5 × 3 m/s × 1 s = 1.5 m），8 s 后速度低于 0.01 m/s |
 
-## 碰撞、起降与坠毁
+## 碰撞
 
 飞行模型用根组件（`CollisionBox`）的碰撞形状、对象通道和响应沿运动方向扫掠，忽略无人机自己，遇到几何体后沿接触面滑动。旋转不参与扫掠；起点就嵌在几何体里时被推出。
 
-### 起步状态
+### 地面也是表面
 
-`InitialState` 决定开始时和 `Reset Flight` 之后的状态：
+地面、墙和其他物体都只是表面，碰到地面和碰到一块普通的板子没有区别：
 
-| `InitialState` | 效果 |
-| --- | --- |
-| `Auto` | 脚下 5 cm 以内有可着陆的地面（坡度不超过 `MaxLandingSlopeDegrees`）时落地并贴到地面，否则悬停 |
-| `Landed` | 就地落地，直到收到上升指令才起飞；适合放在地面上的无人机，在空中放置也不会下落 |
-| `Hovering` | 就地悬停，即使脚下就是地面 |
+- 无人机在表面前停住（朝向表面的那部分运动被去掉），沿表面滑动（`ContactFriction` 决定接触时滑动速度的损失），接触期间继续执行每一条指令。在地面上按住 W 就贴着地面前进，按 Space 立刻上升。
+- 没有落地状态，没有起飞条件，没有坠毁，也没有冻结的状态；旋翼在地面上不会停转。指令不会因为碰撞被拒绝。
+- 撞得再重（例如以 6 m/s 撞墙）也只触发 `OnImpact`；无人机继续飞行，继续接受指令。
 
-### 飞行状态
+### 开始和重置
 
-`Get Flight State` 返回 `EUBotMultirotorFlightState`，`Is Landed` 是它的简写：
-
-| 状态 | 说明 |
-| --- | --- |
-| `Landed` | 停在地面上：冻结、水平、旋翼停转，加速度计读数是 +g。上升指令让它起飞 |
-| `Flying` | 在空中 |
-| `Crashed` | 撞得太快：旋翼停转，拒绝所有指令，直到 `Reset Flight` |
-
-**落地**：接触可着陆的面，速度低于 0.3 m/s，且没有要求上升。水平和下降指令不会移动已经落地的无人机。
-
-**起飞**：
-
-| 无人机 | 起飞条件 |
-| --- | --- |
-| 导航 | 速度指令的 Z 大于 0（不在刹车状态） |
-| 物理 | `Velocity` 模式的速度指令 Z 大于 0；姿态或角速度指令带推力大于 0 或爬升率大于 0（没有它们的姿态指令不会起飞）；电机指令使推力大于重量 |
-
-**坠毁**：沿表面法线的撞击速度达到 `CrashImpactSpeedMetersPerSecond` 时进入 `Crashed`，触发 `OnCrashed`。物理无人机的电机停转，坠落并在地面静止，直到 `Reset Flight` 前不再运动；导航无人机冻结在原地。
-
-**恢复**：`Reset Flight` 清除坠毁、停止所有运动，并在当前位姿按 `InitialState` 重新起步。
+开始时和 `Reset Flight` 之后，无人机都在当前位置悬停：放在地面上也一样，不会下沉贴地，就停在放置的位置，旋翼以悬停转速旋转。`Reset Flight` 停止所有运动、清除当前指令，并在当前位姿重新悬停。
 
 **传送**：`Teleport Multirotor(NewLocation, NewRotation, bStopMotion = true)`，位置单位厘米，不做扫掠。`bStopMotion` 为真时速度清零并在新位置悬停，否则保持速度继续飞。
 
 **外部移动**：用 `SetActorLocation` 等从外部移动 Actor（编辑器、重置脚本），飞行模型在下一帧接管新位姿，速度保持。
+
+### 物理无人机不往表面里推
+
+物理无人机的速度指令（姿态或角速度模式下是垂直速度指令）不会往最近 50 ms 内接触过的表面里推：指令里朝向该表面的分量被丢掉，控制器不会因为推不动而积分饱和。所以在地面上按住 Left Ctrl（下降），电机保持悬停推力，紧接着给上升指令，无人机立刻升起。
 
 ### 事件
 
@@ -682,20 +662,20 @@ ros2 topic pub -r 50 /drone/cmd_attitude mavros_msgs/msg/AttitudeTarget "{type_m
 
 | 事件 | 参数 | 触发 |
 | --- | --- | --- |
-| `OnFlightStateChanged` | `NewState`、`PreviousState` | 起飞、落地、坠毁、重置 |
-| `OnImpact` | `Hit`、`ImpactSpeedMetersPerSecond` | 开始接触，且撞击速度不低于 `ImpactEventMinSpeedMetersPerSecond` |
-| `OnCrashed` | `Hit`、`ImpactSpeedMetersPerSecond` | 撞击速度达到坠毁速度 |
+| `OnImpact` | `Hit`、`ImpactSpeedMetersPerSecond` | 开始接触，且沿表面法线的撞击速度不低于 `ImpactEventMinSpeedMetersPerSecond`（0.3 m/s） |
 
 测试验收：
 
 | 项目 | 验收 |
 | --- | --- |
-| 导航无人机以 1 m/s 撞墙 | 停在墙前 1 cm 以内，朝墙的速度不超过 0.06 m/s，触发一次 `OnImpact`，撞击速度与接近速度相差不超过 0.05 m/s，不坠毁 |
+| 导航无人机以 1 m/s 撞墙 | 停在墙前 1 cm 以内，朝墙的速度不超过 0.06 m/s，触发一次 `OnImpact`，撞击速度与接近速度相差不超过 0.05 m/s |
 | 以 2 m/s 撞向 45° 的墙 | 沿墙的滑动速度至少 0.7 m/s，向 −Y 移动超过 1 m |
-| 导航无人机以 1 m/s 下降 | 接触地面后 0.1 s 内落地，停在中心高 6.7 cm 处，旋翼停转；上升指令后 0.5 s 内起飞，2.5 s 后中心高度至少 1 m |
-| 物理无人机落地和起飞 | 同上；落地后中心高 6.7 cm（误差 0.3 cm），水平，旋翼低于 1 rad/s |
-| 物理无人机以 6 m/s 撞墙 | 坠毁，`OnCrashed` 一次，撞击速度至少 3 m/s，之后拒绝指令，电机低于 1 rad/s，落到地面静止，`Reset Flight` 后落地并能再起飞 |
-| `Auto` 起步 | 离地 2 cm 时落地并贴地，离地 3 m 时悬停 |
+| `Collision.FloorIsASurface`（导航） | 从 1 m 高处以 1 m/s 下降：停在地面上，中心高 9 cm（测试用 Pawn 的碰撞盒），触发一次 `OnImpact`，旋翼继续旋转。然后以 1 m/s 前进、同时仍发 −0.5 m/s 的下降指令：2 s 内沿地面移动至少 1 m，仍在地面上。再发上升指令：0.5 s 后升高至少 15 cm，2.5 s 后中心离地至少 1 m |
+| `Collision.StartOnFloor`（导航） | 放在地面上，1 s 内停在放置的位置；发 1 m/s 的前进指令，1 s 内移动至少 0.5 m。`Reset Flight` 让运动中的无人机停下，并清除它的指令 |
+| `Collision.PhysicsFloor`（物理） | 以 −1 m/s 下压地面 5 s：静止在中心高 9 cm（误差 0.5 cm），速度低于 0.05 m/s，倾角小于 1°，电机接近悬停（高于 600 rad/s）。然后以 1 m/s 前进、同时仍在下压：3 s 内至少前进 1.5 m，速度约 1 m/s（误差 0.15 m/s），仍在地面上。再发上升指令：0.5 s 后中心离地至少 0.25 m，2.5 s 后至少 1 m |
+| `Collision.HardImpact`（物理） | 以 6 m/s 撞墙：触发 `OnImpact`，撞击速度至少 3 m/s，停在墙前；仍然可以飞行并接受指令；以 −1 m/s 飞回，3 s 内至少飞回 1 m，并留在空中 |
+
+示例蓝图放在地面上时，根组件中心离地 6.7 cm（碰撞盒的半高）；上表的 9 cm 是测试用 Pawn 的碰撞盒。
 
 ## 确定性与时间
 
@@ -730,14 +710,13 @@ uBotSensor 的传感器组件可以直接加到复制出来的示例蓝图（或
 | `LinearAccelerationMetersPerSecondSquared` | 该步的世界系线加速度 |
 | `SpecificForceMetersPerSecondSquared` | 理想加速度计的读数（加速度减重力，机体系）；悬停时 Z 约 +9.81 |
 | `RotorSpeedsRadiansPerSecond` | 按电机序号的转速，导航无人机为空 |
-| `FlightState` | 飞行状态 |
 | `SimTimeSeconds` | 这个物理步的 uBot 仿真时间 |
 
 蓝图函数的类别是 `uBot|Aerial|Multirotor`、`uBot|Aerial|Wind` 和 `uBot|Aerial|Input`：
 
 | 对象 | 节点 |
 | --- | --- |
-| 飞行模型（`uBot Simple Flight`、`uBot Multirotor Dynamics`） | `Get Flight State`、`Is Landed`、`Get Multirotor State`、`Get Last Velocity Command`、`Get Physics Step Count`、`Get Rotor Layout`、`Reset Flight`、`Teleport Multirotor` |
+| 飞行模型（`uBot Simple Flight`、`uBot Multirotor Dynamics`） | `Get Multirotor State`、`Get Last Velocity Command`、`Get Physics Step Count`、`Get Rotor Layout`、`Reset Flight`、`Teleport Multirotor` |
 | `uBot Simple Flight` | `Is Braking`、`Get Tilted Attitude` |
 | `uBot Multirotor Dynamics` | `Get Active Control Mode`、`Get Flight Setpoint`、`Set Flight Controller`、`Get Last Motor Commands`、`Get Hover Motor Command` |
 | `uBot Rotor` | `Set Rotor Speed`、`Get Rotor Speed` |
@@ -760,8 +739,7 @@ uBotSensor 的传感器组件可以直接加到复制出来的示例蓝图（或
 | Content Browser 里看不到示例蓝图和地图 | 插件的 Content 默认不显示：打开 `Settings > Show Plugin Content` |
 | 更新插件后，对示例的修改不见了 | 直接改的是插件里的原资产。把示例复制到自己的工程再改，见“示例内容” |
 | 按键没有反应 | 玩家要控制（Possess）这架无人机，`bTakeControlWhenPossessed` 要开；默认玩家输入类要是 Enhanced Input；`FlightMode` 要是无人机能接受的（导航无人机只能用 `Velocity`），否则日志警告一次 |
-| 指令返回 `false` | 无人机已坠毁（先 `Reset Flight`）；这种指令被 `bAccept...Commands` 关闭（裸机架拒绝速度和姿态）；指令含 NaN；电机指令的个数不等于电机数；姿态四元数长度接近 0 |
-| 落地后不起飞 | 起飞需要上升指令，见“起飞”。不带推力或爬升率的姿态指令不会起飞 |
+| 指令返回 `false` | 这种指令被 `bAccept...Commands` 关闭（裸机架拒绝速度和姿态）；指令含 NaN；电机指令的个数不等于电机数；姿态四元数长度接近 0 |
 | 物理无人机在风里越飘越远 | 零速度指令不锁定位置。要刹停并锁定位置，用 `Stop Motion` |
 | 导航无人机加速时挂在根上的传感器不倾斜 | 默认 `TiltMode` 是 `Visual`，根组件始终水平；要让根倾斜用 `Body` |
 | 日志提示一帧需要的物理步数超过上限 | 帧太长。调大 `MaxStepsPerFrame` 或降低 `PhysicsRateHz` |
@@ -775,7 +753,7 @@ uBotSensor 的传感器组件可以直接加到复制出来的示例蓝图（或
 
 - `SimpleFlight.*`、`Math.SimpleFlightModel`：阶跃响应、偏航角速度、指令截断、有界刹车、逐轴的最小位移、比力、逐帧呈现无抖动，验收指标见“导航无人机的简化飞行模型”。
 - `Dynamics.*`、`Controller.*`、`Math.ThrustAllocation`：10 s 悬停、速度阶跃、偏航角速度、有界刹车、电机全为 0 的自由落体、指令丢失（`Hover`、`Land`、`CutMotors`、超时）、各无人机接受的指令类型、姿态和角速度跟踪、自定义飞控（每步一次、`ControllerRateDivider`、个数错误）。推力分配：最大总推力，可行请求的往返误差，横滚、俯仰、偏航的符号，偏航饱和时先削减偏航。
-- `Collision.*`：撞墙停住、45° 墙面滑动、导航无人机和物理无人机的落地与起飞、坠毁与 `Reset Flight`、`InitialState`、外部移动与 `Teleport Multirotor`。
+- `Collision.*`：撞墙停住、45° 墙面滑动、地面只是一个表面（导航无人机下降到地面、贴着地面前进、随即爬升；物理无人机在地面上下压、前进、爬升）、放在地面上的起步和 `Reset Flight`、高速撞墙后继续飞行并接受指令、外部移动与 `Teleport Multirotor`。
 - `Wind.*`：阵风的确定性和统计量，`uBot Wind` 与脚本风叠加，物理无人机的稳态风响应，导航无人机的风速阶跃。
 - `Input.*`：轴到指令的映射（`Velocity`、`Angle`、`Rate` 的符号和幅值，死区），默认键位不重复、每个轴有正负键和摇杆，映射上下文与键位一致。
 - `Base.PauseNoMotion`、`Determinism.*`：暂停期间没有物理步、恢复后不补跑，两次运行逐位相同，不同帧率下恒定指令的结果相同。

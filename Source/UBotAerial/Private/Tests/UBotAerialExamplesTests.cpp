@@ -180,7 +180,6 @@ bool FUBotAerialExamplesPhysicsHoverTest::RunTest(const FString& Parameters)
     {
         return false;
     }
-    TestEqual(TEXT("Hovers on its own"), Dynamics->GetFlightState(), EUBotMultirotorFlightState::Flying);
     const FVector Start = Dynamics->GetMultirotorState().PositionMeters;
     double MaxDz = 0.0;
     double MaxTilt = 0.0;

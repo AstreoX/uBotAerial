@@ -101,7 +101,7 @@ public:
     virtual void BeginPlay() override;
 
 protected:
-    virtual void ResetModel(bool bLanded) override;
+    virtual void ResetModel() override;
     virtual void SimulateStep(double StepSeconds) override;
     virtual bool AcceptVelocityCommand(const FVector& LinearHeading, double YawRate) override;
     virtual void HandleStopMotion() override;
@@ -117,9 +117,9 @@ private:
     void EnterSetpointMode(EUBotFlightControlMode Mode);
     void ApplyCommandLoss();
     void NoteCommand();
-    void SyncBodyFromBase();
     const FUBotMultirotorState& UpdateControllerState();
-    bool WantsTakeOff() const;
+    /** Velocity without the part pointing into the surfaces touched in the latest step. */
+    FVector ProjectOutOfContacts(const FVector& VelocityMetersPerSecond) const;
 
     UPROPERTY(Transient)
     TObjectPtr<UUBotFlightController> FallbackController;
@@ -129,6 +129,8 @@ private:
     FUBotFlightSetpoint Setpoint;
     /** Heading-frame velocity of the latest velocity command; turned into the world frame every step. */
     FVector VelocityCommandHeading = FVector::ZeroVector;
+    /** Vertical velocity of the latest attitude or body-rate command, m/s (used when it has no thrust). */
+    double CommandedVerticalVelocity = 0.0;
     TArray<double> MotorCommands;
     TArray<double> DirectMotorCommands;
     FUBotMultirotorState ControllerState;
@@ -136,10 +138,10 @@ private:
     double LastCommandSimTime = 0.0;
     int32 StepsUntilController = 0;
     bool bBraking = false;
-    bool bLanding = false;
     bool bCommandActive = false;
     bool bAirframeValid = false;
     bool bControllerOutputWarned = false;
-    /** Crashed and lying still on the ground: no more integration until Reset Flight. */
-    bool bCrashedAtRest = false;
+    /** Normals of the surfaces touched lately: commands do not push into them. */
+    TArray<FVector> ContactNormals;
+    double LastContactTimeSeconds = 0.0;
 };

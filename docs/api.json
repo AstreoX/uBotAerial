@@ -514,28 +514,6 @@
           }
         },
         {
-          "id": "CrashImpactSpeedMetersPerSecond",
-          "displayName": "Crash Impact Speed Meters Per Second",
-          "type": {
-            "category": "float",
-            "subtype": "",
-            "subtypeDisplay": "",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "3.000000",
-          "category": "Multirotor|Contact",
-          "access": "readWrite",
-          "editable": "anywhere",
-          "tooltip": "Impact speed along the surface normal at which the drone crashes, m/s. 0 never crashes.",
-          "meta": {
-            "ClampMin": "0.0",
-            "Units": "MetersPerSecond"
-          }
-        },
-        {
           "id": "DynamicsBackendName",
           "displayName": "Dynamics Backend Name",
           "type": {
@@ -1001,7 +979,7 @@
       "module": "UBotAerial",
       "header": "Source/UBotAerial/Public/UBotMultirotorMovementComponent.h",
       "category": "uBot",
-      "tooltip": "Base of the multirotor flight models. Moves the root component (the updated component) in fixed\nphysics steps on uBot sim time, sweeps its collision shape through the world, lands and crashes,\nand presents the pose extrapolated to the current sim time every frame. Accepts velocity commands\n(IUBotVelocityCommandable) in the heading frame: X forward and Y right along the current heading,\nZ up; only the Z angular velocity (yaw rate) is used.",
+      "tooltip": "Base of the multirotor flight models. Moves the root component (the updated component) in fixed\nphysics steps on uBot sim time, sweeps its collision shape through the world and slides along what\nit touches (the ground is a surface like any other), and presents the pose extrapolated to the\ncurrent sim time every frame. Accepts velocity commands\n(IUBotVelocityCommandable) in the heading frame: X forward and Y right along the current heading,\nZ up; only the Z angular velocity (yaw rate) is used.",
       "flags": {
         "abstract": true,
         "blueprintType": true,
@@ -1051,28 +1029,6 @@
           }
         },
         {
-          "id": "CrashImpactSpeedMetersPerSecond",
-          "displayName": "Crash Impact Speed Meters Per Second",
-          "type": {
-            "category": "float",
-            "subtype": "",
-            "subtypeDisplay": "",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "0.000000",
-          "category": "Multirotor|Contact",
-          "access": "readWrite",
-          "editable": "anywhere",
-          "tooltip": "Impact speed along the surface normal at which the drone crashes, m/s. 0 never crashes.",
-          "meta": {
-            "ClampMin": "0.0",
-            "Units": "MetersPerSecond"
-          }
-        },
-        {
           "id": "ImpactEventMinSpeedMetersPerSecond",
           "displayName": "Impact Event Min Speed Meters Per Second",
           "type": {
@@ -1092,48 +1048,6 @@
           "meta": {
             "ClampMin": "0.0",
             "Units": "MetersPerSecond"
-          }
-        },
-        {
-          "id": "InitialState",
-          "displayName": "Initial State",
-          "type": {
-            "category": "enum",
-            "subtype": "EUBotMultirotorInitialState",
-            "subtypeDisplay": "EUBot Multirotor Initial State",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "Auto",
-          "category": "Multirotor",
-          "access": "readWrite",
-          "editable": "anywhere",
-          "tooltip": "How the drone starts when play begins (also after Reset Flight).",
-          "meta": {}
-        },
-        {
-          "id": "MaxLandingSlopeDegrees",
-          "displayName": "Max Landing Slope Degrees",
-          "type": {
-            "category": "float",
-            "subtype": "",
-            "subtypeDisplay": "",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "30.000000",
-          "category": "Multirotor|Contact",
-          "access": "readWrite",
-          "editable": "anywhere",
-          "tooltip": "Steepest surface the drone lands on, degrees from level.",
-          "meta": {
-            "ClampMin": "0.0",
-            "ClampMax": "89.0",
-            "Units": "Degrees"
           }
         },
         {
@@ -1220,14 +1134,10 @@
         }
       ],
       "nodes": [
-        "UUBotMultirotorMovementComponent.GetFlightState",
         "UUBotMultirotorMovementComponent.GetLastVelocityCommand",
         "UUBotMultirotorMovementComponent.GetMultirotorState",
         "UUBotMultirotorMovementComponent.GetPhysicsStepCount",
         "UUBotMultirotorMovementComponent.GetRotorLayout",
-        "UUBotMultirotorMovementComponent.IsLanded",
-        "UUBotMultirotorMovementComponent.OnCrashed",
-        "UUBotMultirotorMovementComponent.OnFlightStateChanged",
         "UUBotMultirotorMovementComponent.OnImpact",
         "UUBotMultirotorMovementComponent.ResetFlight",
         "UUBotMultirotorMovementComponent.TeleportMultirotor"
@@ -2503,22 +2413,6 @@
           "default": "",
           "advanced": true,
           "tooltip": "Rotor speeds in motor order, rad/s (empty for the simplified flight model)."
-        },
-        {
-          "id": "FlightState",
-          "name": "Flight State",
-          "type": {
-            "category": "enum",
-            "subtype": "EUBotMultirotorFlightState",
-            "subtypeDisplay": "EUBot Multirotor Flight State",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "",
-          "advanced": true,
-          "tooltip": "Flight state at this step."
         },
         {
           "id": "SimTimeSeconds",
@@ -4612,63 +4506,6 @@
       ]
     },
     {
-      "id": "UUBotMultirotorMovementComponent.GetFlightState",
-      "kind": "pure",
-      "title": "Get Flight State",
-      "subtitle": "Target is uBot Multirotor Movement",
-      "subtitleZh": "目标是uBot Multirotor Movement",
-      "owner": "UUBotMultirotorMovementComponent",
-      "member": "GetFlightState",
-      "category": "uBot|Aerial|Multirotor",
-      "tooltip": "The current flight state.",
-      "keywords": "",
-      "flags": {
-        "static": false,
-        "latent": false,
-        "deprecated": false,
-        "developmentOnly": false,
-        "callInEditor": false,
-        "compact": false
-      },
-      "compactTitle": "",
-      "inputs": [
-        {
-          "id": "self",
-          "name": "Target",
-          "type": {
-            "category": "object",
-            "subtype": "UUBotMultirotorMovementComponent",
-            "subtypeDisplay": "uBot Multirotor Movement",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "",
-          "advanced": false,
-          "tooltip": ""
-        }
-      ],
-      "outputs": [
-        {
-          "id": "ReturnValue",
-          "name": "Return Value",
-          "type": {
-            "category": "enum",
-            "subtype": "EUBotMultirotorFlightState",
-            "subtypeDisplay": "EUBot Multirotor Flight State",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "",
-          "advanced": false,
-          "tooltip": ""
-        }
-      ]
-    },
-    {
       "id": "UUBotMultirotorMovementComponent.GetLastVelocityCommand",
       "kind": "pure",
       "title": "Get Last Velocity Command",
@@ -4913,205 +4750,6 @@
       ]
     },
     {
-      "id": "UUBotMultirotorMovementComponent.IsLanded",
-      "kind": "pure",
-      "title": "Is Landed",
-      "subtitle": "Target is uBot Multirotor Movement",
-      "subtitleZh": "目标是uBot Multirotor Movement",
-      "owner": "UUBotMultirotorMovementComponent",
-      "member": "IsLanded",
-      "category": "uBot|Aerial|Multirotor",
-      "tooltip": "True while the drone rests on the ground.",
-      "keywords": "",
-      "flags": {
-        "static": false,
-        "latent": false,
-        "deprecated": false,
-        "developmentOnly": false,
-        "callInEditor": false,
-        "compact": false
-      },
-      "compactTitle": "",
-      "inputs": [
-        {
-          "id": "self",
-          "name": "Target",
-          "type": {
-            "category": "object",
-            "subtype": "UUBotMultirotorMovementComponent",
-            "subtypeDisplay": "uBot Multirotor Movement",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "",
-          "advanced": false,
-          "tooltip": ""
-        }
-      ],
-      "outputs": [
-        {
-          "id": "ReturnValue",
-          "name": "Return Value",
-          "type": {
-            "category": "bool",
-            "subtype": "",
-            "subtypeDisplay": "",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "",
-          "advanced": false,
-          "tooltip": ""
-        }
-      ]
-    },
-    {
-      "id": "UUBotMultirotorMovementComponent.OnCrashed",
-      "kind": "event",
-      "title": "On Crashed",
-      "subtitle": "",
-      "owner": "UUBotMultirotorMovementComponent",
-      "member": "OnCrashed",
-      "category": "uBot|Aerial|Multirotor",
-      "tooltip": "Fires when an impact reaches Crash Impact Speed.",
-      "keywords": "",
-      "flags": {
-        "static": false,
-        "latent": false,
-        "deprecated": false,
-        "developmentOnly": false,
-        "callInEditor": false,
-        "compact": false
-      },
-      "compactTitle": "",
-      "inputs": [],
-      "outputs": [
-        {
-          "id": "then",
-          "name": "",
-          "type": {
-            "category": "exec",
-            "subtype": "",
-            "subtypeDisplay": "",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "",
-          "advanced": false,
-          "tooltip": ""
-        },
-        {
-          "id": "Hit",
-          "name": "Hit",
-          "type": {
-            "category": "struct",
-            "subtype": "FHitResult",
-            "subtypeDisplay": "Hit Result",
-            "container": "none",
-            "valueType": null,
-            "byRef": true,
-            "const": true
-          },
-          "default": "",
-          "advanced": false,
-          "tooltip": ""
-        },
-        {
-          "id": "ImpactSpeedMetersPerSecond",
-          "name": "Impact Speed Meters Per Second",
-          "type": {
-            "category": "float",
-            "subtype": "",
-            "subtypeDisplay": "",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "",
-          "advanced": false,
-          "tooltip": ""
-        }
-      ]
-    },
-    {
-      "id": "UUBotMultirotorMovementComponent.OnFlightStateChanged",
-      "kind": "event",
-      "title": "On Flight State Changed",
-      "subtitle": "",
-      "owner": "UUBotMultirotorMovementComponent",
-      "member": "OnFlightStateChanged",
-      "category": "uBot|Aerial|Multirotor",
-      "tooltip": "Fires when the flight state changes (take-off, landing, crash, reset).",
-      "keywords": "",
-      "flags": {
-        "static": false,
-        "latent": false,
-        "deprecated": false,
-        "developmentOnly": false,
-        "callInEditor": false,
-        "compact": false
-      },
-      "compactTitle": "",
-      "inputs": [],
-      "outputs": [
-        {
-          "id": "then",
-          "name": "",
-          "type": {
-            "category": "exec",
-            "subtype": "",
-            "subtypeDisplay": "",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "",
-          "advanced": false,
-          "tooltip": ""
-        },
-        {
-          "id": "NewState",
-          "name": "New State",
-          "type": {
-            "category": "enum",
-            "subtype": "EUBotMultirotorFlightState",
-            "subtypeDisplay": "EUBot Multirotor Flight State",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "",
-          "advanced": false,
-          "tooltip": ""
-        },
-        {
-          "id": "PreviousState",
-          "name": "Previous State",
-          "type": {
-            "category": "enum",
-            "subtype": "EUBotMultirotorFlightState",
-            "subtypeDisplay": "EUBot Multirotor Flight State",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "default": "",
-          "advanced": false,
-          "tooltip": ""
-        }
-      ]
-    },
-    {
       "id": "UUBotMultirotorMovementComponent.OnImpact",
       "kind": "event",
       "title": "On Impact",
@@ -5191,7 +4829,7 @@
       "owner": "UUBotMultirotorMovementComponent",
       "member": "ResetFlight",
       "category": "uBot|Aerial|Multirotor",
-      "tooltip": "Clears a crash, stops all motion and starts again as Initial State says, at the current pose.",
+      "tooltip": "Stops all motion and hovers again at the current pose, as at begin play.",
       "keywords": "",
       "flags": {
         "static": false,
@@ -6202,21 +5840,6 @@
           "access": "readOnly"
         },
         {
-          "id": "FlightState",
-          "displayName": "Flight State",
-          "type": {
-            "category": "enum",
-            "subtype": "EUBotMultirotorFlightState",
-            "subtypeDisplay": "EUBot Multirotor Flight State",
-            "container": "none",
-            "valueType": null,
-            "byRef": false,
-            "const": false
-          },
-          "tooltip": "Flight state at this step.",
-          "access": "readOnly"
-        },
-        {
           "id": "LinearAccelerationMetersPerSecondSquared",
           "displayName": "Linear Acceleration Meters Per Second Squared",
           "type": {
@@ -6593,7 +6216,7 @@
           "id": "Land",
           "displayName": "Land",
           "value": 1,
-          "tooltip": "Descend in place until landed."
+          "tooltip": "Descend in place at Landing Speed; the ground stops it like any other surface."
         }
       ]
     },
@@ -6675,60 +6298,6 @@
           "displayName": "Thrust",
           "value": 0,
           "tooltip": "Thrust grows linearly with the command: speed = max speed * sqrt(command)."
-        }
-      ]
-    },
-    {
-      "id": "EUBotMultirotorFlightState",
-      "displayName": "EUBot Multirotor Flight State",
-      "module": "UBotAerial",
-      "header": "Source/UBotAerial/Public/UBotAerialTypes.h",
-      "tooltip": "Flight state of a multirotor. Append new values at the end.",
-      "values": [
-        {
-          "id": "Crashed",
-          "displayName": "Crashed",
-          "value": 2,
-          "tooltip": "Hit something faster than the crash speed: rotors stopped, commands are rejected until Reset Flight."
-        },
-        {
-          "id": "Flying",
-          "displayName": "Flying",
-          "value": 1,
-          "tooltip": "In the air."
-        },
-        {
-          "id": "Landed",
-          "displayName": "Landed",
-          "value": 0,
-          "tooltip": "Resting on the ground: frozen, level, rotors stopped. A climb command takes off."
-        }
-      ]
-    },
-    {
-      "id": "EUBotMultirotorInitialState",
-      "displayName": "EUBot Multirotor Initial State",
-      "module": "UBotAerial",
-      "header": "Source/UBotAerial/Public/UBotAerialTypes.h",
-      "tooltip": "How a multirotor starts when play begins. Append new values at the end.",
-      "values": [
-        {
-          "id": "Auto",
-          "displayName": "Auto",
-          "value": 0,
-          "tooltip": "Landed when walkable ground is within a few centimeters below the drone, otherwise hovering."
-        },
-        {
-          "id": "Hovering",
-          "displayName": "Hovering",
-          "value": 2,
-          "tooltip": "Hovering where it stands."
-        },
-        {
-          "id": "Landed",
-          "displayName": "Landed",
-          "value": 1,
-          "tooltip": "Landed where it stands, until a climb command takes off. Use it for a drone placed on the ground."
         }
       ]
     },

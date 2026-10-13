@@ -13,13 +13,13 @@ class UUBotRotorComponent;
 class UUBotWindSubsystem;
 struct FUBotMultirotorContacts;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FUBotMultirotorFlightStateChangedEvent, EUBotMultirotorFlightState, NewState, EUBotMultirotorFlightState, PreviousState);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FUBotMultirotorImpactEvent, const FHitResult&, Hit, float, ImpactSpeedMetersPerSecond);
 
 /**
  * Base of the multirotor flight models. Moves the root component (the updated component) in fixed
- * physics steps on uBot sim time, sweeps its collision shape through the world, lands and crashes,
- * and presents the pose extrapolated to the current sim time every frame. Accepts velocity commands
+ * physics steps on uBot sim time, sweeps its collision shape through the world and slides along what
+ * it touches (the ground is a surface like any other), and presents the pose extrapolated to the
+ * current sim time every frame. Accepts velocity commands
  * (IUBotVelocityCommandable) in the heading frame: X forward and Y right along the current heading,
  * Z up; only the Z angular velocity (yaw rate) is used.
  */
@@ -44,14 +44,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Multirotor|Limits")
     FUBotMultirotorVelocityLimits VelocityLimits;
 
-    /** How the drone starts when play begins (also after Reset Flight). */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Multirotor")
-    EUBotMultirotorInitialState InitialState = EUBotMultirotorInitialState::Auto;
-
-    /** Impact speed along the surface normal at which the drone crashes, m/s. 0 never crashes. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Multirotor|Contact", meta = (ClampMin = "0.0", Units = "MetersPerSecond"))
-    float CrashImpactSpeedMetersPerSecond = 0.0f;
-
     /** Impacts slower than this (along the surface normal) do not fire On Impact, m/s. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Multirotor|Contact", meta = (ClampMin = "0.0", Units = "MetersPerSecond"))
     float ImpactEventMinSpeedMetersPerSecond = 0.3f;
@@ -59,10 +51,6 @@ public:
     /** Sliding friction on contact: the sliding speed drops by this share of the impact speed. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Multirotor|Contact", meta = (ClampMin = "0.0"))
     float ContactFriction = 0.3f;
-
-    /** Steepest surface the drone lands on, degrees from level. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Multirotor|Contact", meta = (ClampMin = "0.0", ClampMax = "89.0", Units = "Degrees"))
-    float MaxLandingSlopeDegrees = 30.0f;
 
     /** Whether wind from uBot Wind actors affects this drone. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Multirotor")
@@ -72,25 +60,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Multirotor")
     FString ActuatorId;
 
-    /** Fires when the flight state changes (take-off, landing, crash, reset). */
-    UPROPERTY(BlueprintAssignable, Category = "uBot|Aerial|Multirotor")
-    FUBotMultirotorFlightStateChangedEvent OnFlightStateChanged;
-
     /** Fires when the drone starts touching something at least Impact Event Min Speed fast. */
     UPROPERTY(BlueprintAssignable, Category = "uBot|Aerial|Multirotor")
     FUBotMultirotorImpactEvent OnImpact;
-
-    /** Fires when an impact reaches Crash Impact Speed. */
-    UPROPERTY(BlueprintAssignable, Category = "uBot|Aerial|Multirotor")
-    FUBotMultirotorImpactEvent OnCrashed;
-
-    /** The current flight state. */
-    UFUNCTION(BlueprintPure, Category = "uBot|Aerial|Multirotor", meta = (DisplayName = "Get Flight State"))
-    EUBotMultirotorFlightState GetFlightState() const { return FlightState; }
-
-    /** True while the drone rests on the ground. */
-    UFUNCTION(BlueprintPure, Category = "uBot|Aerial|Multirotor", meta = (DisplayName = "Is Landed"))
-    bool IsLanded() const { return FlightState == EUBotMultirotorFlightState::Landed; }
 
     /** Ground-truth state at the latest physics step (SI units, UE world axes). */
     UFUNCTION(BlueprintPure, Category = "uBot|Aerial|Multirotor", meta = (DisplayName = "Get Multirotor State"))
@@ -104,7 +76,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "uBot|Aerial|Multirotor", meta = (DisplayName = "Get Physics Step Count"))
     int64 GetPhysicsStepCount() const { return StepCount; }
 
-    /** Clears a crash, stops all motion and starts again as Initial State says, at the current pose. */
+    /** Stops all motion and hovers again at the current pose, as at begin play. */
     UFUNCTION(BlueprintCallable, Category = "uBot|Aerial|Multirotor", meta = (DisplayName = "Reset Flight"))
     void ResetFlight();
 
@@ -141,8 +113,8 @@ public:
     virtual void GetRotorLayout(TArray<FVector>& PositionsMeters, TArray<EUBotRotorSpinDirection>& SpinDirections) const;
 
 protected:
-    /** Resets the model of the subclass to the current base state. bLanded says how it starts. */
-    virtual void ResetModel(bool bLanded) {}
+    /** Resets the model of the subclass to the current base state: at rest, hovering. */
+    virtual void ResetModel() {}
 
     /** Advances the model by one physics step. Implementations call MoveBody and ApplyContacts. */
     virtual void SimulateStep(double StepSeconds) PURE_VIRTUAL(UUBotMultirotorMovementComponent::SimulateStep, );
@@ -175,16 +147,10 @@ protected:
     void MoveBody(const FVector& DeltaMeters, const FQuat& NewOrientation, FUBotMultirotorContacts& OutContacts);
 
     /**
-     * Removes the part of InOutVelocity that points into the contacts, applies friction, fires impact
-     * and crash events. Returns the largest impact speed along a normal, m/s.
+     * Removes the part of InOutVelocity that points into the contacts, applies friction and fires On
+     * Impact. Returns the largest impact speed along a normal, m/s.
      */
     double ApplyContacts(const FUBotMultirotorContacts& Contacts, FVector& InOutVelocity);
-
-    /** True when the drone may land on this surface. */
-    bool IsWalkable(const FHitResult& Hit) const;
-
-    /** Changes the flight state and queues On Flight State Changed. */
-    void SetFlightState(EUBotMultirotorFlightState NewState);
 
     /** Wind velocity at the drone now, m/s (zero when wind is disabled). */
     FVector SampleWind() const;
@@ -199,7 +165,6 @@ protected:
     /** Body frame, rad/s. */
     FVector AngularVelocity = FVector::ZeroVector;
     FVector LinearAcceleration = FVector::ZeroVector;
-    EUBotMultirotorFlightState FlightState = EUBotMultirotorFlightState::Flying;
     FUBotVelocityCommand LastVelocityCommand;
     /** The latest step touched something. */
     bool bContactThisStep = false;
@@ -211,19 +176,15 @@ private:
     void BroadcastQueuedEvents();
     FTransform ComputePresentedTransform(double ExtrapolationSeconds) const;
 
-    struct FQueuedEvent
+    struct FQueuedImpact
     {
-        enum class EKind : uint8 { StateChanged, Impact, Crashed };
-        EKind Kind = EKind::StateChanged;
-        EUBotMultirotorFlightState NewState = EUBotMultirotorFlightState::Flying;
-        EUBotMultirotorFlightState PreviousState = EUBotMultirotorFlightState::Flying;
         FHitResult Hit;
         float Speed = 0.0f;
     };
 
     UBot::Multirotor::FFixedStepClock PhysicsClock;
     TSharedPtr<FUBotMultirotorCollision> Collision;
-    TArray<FQueuedEvent> QueuedEvents;
+    TArray<FQueuedImpact> QueuedImpacts;
     TArray<TWeakObjectPtr<UUBotRotorComponent>> Rotors;
     TWeakObjectPtr<const UUBotWindSubsystem> WindSubsystem;
     FTransform LastPresentedTransform = FTransform::Identity;
@@ -233,4 +194,6 @@ private:
     bool bFreeSpaceThisFrame = false;
     bool bContactLastStep = false;
     bool bDroppedStepsWarned = false;
+    /** The first frame after the flight started (its hitch, e.g. starting play in the editor, is not warned about). */
+    bool bFirstFrame = false;
 };

@@ -16,9 +16,6 @@ struct FUBotMultirotorContacts
     TArray<FHitResult, TInlineAllocator<4>> Hits;
 
     bool HasContact() const { return Hits.Num() > 0; }
-
-    /** The hit whose normal points most upward, or nullptr. */
-    const FHitResult* FindFloor() const;
 };
 
 /**
@@ -42,9 +39,6 @@ public:
      * location; the blocking hits go to OutContacts.
      */
     FVector Move(const FVector& StartCm, const FVector& DeltaCm, const FQuat& Rotation, FUBotMultirotorContacts& OutContacts) const;
-
-    /** Distance from LocationCm down to blocking geometry within MaxDistanceCm, or a negative number. */
-    double FindFloorDistance(const FVector& LocationCm, const FQuat& Rotation, double MaxDistanceCm, FHitResult* OutHit = nullptr) const;
 
     /** Radius of a sphere around the shape, cm. */
     double GetBoundingRadius() const { return BoundingRadiusCm; }

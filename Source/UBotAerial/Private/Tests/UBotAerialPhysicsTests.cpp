@@ -18,8 +18,6 @@ namespace UBotAerialPhysicsTests
     {
         TStrongObjectPtr<UUBotAerialTestListener> Listener(NewObject<UUBotAerialTestListener>());
         Movement.OnImpact.AddDynamic(Listener.Get(), &UUBotAerialTestListener::HandleImpact);
-        Movement.OnCrashed.AddDynamic(Listener.Get(), &UUBotAerialTestListener::HandleCrash);
-        Movement.OnFlightStateChanged.AddDynamic(Listener.Get(), &UUBotAerialTestListener::HandleStateChanged);
         return Listener;
     }
 
@@ -42,9 +40,9 @@ namespace UBotAerialPhysicsTests
     }
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialPhysicsCrashTest, "UBotAerial.Collision.Crash", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialPhysicsHardImpactTest, "UBotAerial.Collision.HardImpact", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FUBotAerialPhysicsCrashTest::RunTest(const FString& Parameters)
+bool FUBotAerialPhysicsHardImpactTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialPhysicsTests;
     FScopedAerialTestWorld Scope;
@@ -59,44 +57,29 @@ bool FUBotAerialPhysicsCrashTest::RunTest(const FString& Parameters)
     }
     TStrongObjectPtr<UUBotAerialTestListener> Listener = Listen(*Dynamics);
     SendVelocity(*Dynamics, FVector(6.0, 0.0, 0.0));
-    double CrashedAt = -1.0;
-    Scope.RunFor(4.0, FrameSeconds, [&] {
-        if (CrashedAt < 0.0 && Dynamics->GetFlightState() == EUBotMultirotorFlightState::Crashed)
-        {
-            CrashedAt = Scope.Now();
-        }
-    });
-    TestTrue(TEXT("Crashed into the wall"), CrashedAt > 0.0);
-    TestEqual(TEXT("On Crashed fired once"), Listener->CrashSpeeds.Num(), 1);
-    if (Listener->CrashSpeeds.Num() > 0)
+    Scope.RunFor(4.0);
+    TestTrue(TEXT("Hit the wall"), Listener->ImpactSpeeds.Num() >= 1);
+    if (Listener->ImpactSpeeds.Num() > 0)
     {
-        TestTrue(FString::Printf(TEXT("Crash speed at least 3 m/s (%.3f)"), Listener->CrashSpeeds[0]), Listener->CrashSpeeds[0] >= 3.0f);
+        TestTrue(FString::Printf(TEXT("Fast impact (%.3f m/s)"), Listener->ImpactSpeeds[0]), Listener->ImpactSpeeds[0] >= 3.0f);
     }
-    TestFalse(TEXT("Commands rejected while crashed"), SendVelocity(*Dynamics, FVector(1.0, 0.0, 0.0)));
-    TestFalse(TEXT("Not ready while crashed"), IUBotActuator::Execute_IsActuatorReady(Dynamics));
+    const FUBotMultirotorState AtWall = Dynamics->GetMultirotorState();
+    TestTrue(FString::Printf(TEXT("Stopped at the wall (%.3f m)"), AtWall.PositionMeters.X), AtWall.PositionMeters.X < 8.0 && AtWall.PositionMeters.X > 7.0);
 
+    // A hard hit changes nothing: the drone keeps flying and takes commands.
+    TestTrue(TEXT("Ready after the hit"), IUBotActuator::Execute_IsActuatorReady(Dynamics));
+    TestTrue(TEXT("Commands accepted after the hit"), SendVelocity(*Dynamics, FVector(-1.0, 0.0, 0.0)));
     Scope.RunFor(3.0);
-    const FUBotMultirotorState Rest = Dynamics->GetMultirotorState();
-    for (const double Speed : Rest.RotorSpeedsRadiansPerSecond)
-    {
-        TestTrue(FString::Printf(TEXT("Motors stopped (%.3f)"), Speed), Speed < 1.0);
-    }
-    TestTrue(FString::Printf(TEXT("Fell to the floor (%.3f m)"), Rest.PositionMeters.Z), Rest.PositionMeters.Z < 0.5);
-    TestTrue(FString::Printf(TEXT("At rest (v %s, p %s, tilt %.1f deg)"), *Rest.LinearVelocityMetersPerSecond.ToString(), *Rest.PositionMeters.ToString(),
-        FMath::RadiansToDegrees(UBot::Multirotor::GetTilt(Rest.Orientation))), Rest.LinearVelocityMetersPerSecond.Size() < 0.05);
-    TestEqual(TEXT("Still crashed"), Dynamics->GetFlightState(), EUBotMultirotorFlightState::Crashed);
-
-    Dynamics->ResetFlight();
-    TestTrue(TEXT("Reset Flight recovers, landed on the floor"), Dynamics->IsLanded());
-    TestTrue(TEXT("Commands accepted again"), SendVelocity(*Dynamics, FVector(0.0, 0.0, 1.0)));
-    Scope.RunFor(2.0);
-    TestEqual(TEXT("Flies again"), Dynamics->GetFlightState(), EUBotMultirotorFlightState::Flying);
+    const FUBotMultirotorState After = Dynamics->GetMultirotorState();
+    TestTrue(FString::Printf(TEXT("Flew back from the wall (%.3f m)"), AtWall.PositionMeters.X - After.PositionMeters.X),
+        AtWall.PositionMeters.X - After.PositionMeters.X >= 1.0);
+    TestTrue(FString::Printf(TEXT("Still in the air (%.3f m)"), After.PositionMeters.Z), After.PositionMeters.Z > 1.5);
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialPhysicsLandTakeOffTest, "UBotAerial.Collision.PhysicsLandAndTakeOff", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialPhysicsFloorTest, "UBotAerial.Collision.PhysicsFloor", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FUBotAerialPhysicsLandTakeOffTest::RunTest(const FString& Parameters)
+bool FUBotAerialPhysicsFloorTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialPhysicsTests;
     FScopedAerialTestWorld Scope;
@@ -108,32 +91,32 @@ bool FUBotAerialPhysicsLandTakeOffTest::RunTest(const FString& Parameters)
         return false;
     }
     TStrongObjectPtr<UUBotAerialTestListener> Listener = Listen(*Dynamics);
+
+    // Descending onto the floor and holding the descent: the floor stops it, the motors stay at hover.
     SendVelocity(*Dynamics, FVector(0.0, 0.0, -1.0));
-    Scope.RunFor(4.0);
-    TestTrue(TEXT("Landed"), Dynamics->IsLanded());
-    TestEqual(TEXT("No crash"), Listener->CrashSpeeds.Num(), 0);
-    const FUBotMultirotorState Landed = Dynamics->GetMultirotorState();
-    TestEqual(TEXT("Resting on the floor"), Landed.PositionMeters.Z * 100.0, 9.0, 0.3);
-    TestTrue(TEXT("Level"), UBot::Multirotor::GetTilt(Landed.Orientation) < 1e-6);
-    TestTrue(TEXT("Motors spun down"), Landed.RotorSpeedsRadiansPerSecond[0] < 1.0);
+    Scope.RunFor(5.0);
+    const FUBotMultirotorState OnFloor = Dynamics->GetMultirotorState();
+    TestEqual(TEXT("Stopped on the floor"), OnFloor.PositionMeters.Z * 100.0, 9.0, 0.5);
+    TestTrue(FString::Printf(TEXT("At rest (%.4f)"), OnFloor.LinearVelocityMetersPerSecond.Size()), OnFloor.LinearVelocityMetersPerSecond.Size() < 0.05);
+    TestTrue(FString::Printf(TEXT("Level (%.3f deg)"), FMath::RadiansToDegrees(UBot::Multirotor::GetTilt(OnFloor.Orientation))),
+        FMath::RadiansToDegrees(UBot::Multirotor::GetTilt(OnFloor.Orientation)) < 1.0);
+    TestTrue(FString::Printf(TEXT("Motors near hover (%.1f rad/s)"), OnFloor.RotorSpeedsRadiansPerSecond[0]), OnFloor.RotorSpeedsRadiansPerSecond[0] > 600.0);
 
-    // Attitude commands without thrust or climb leave it on the ground.
-    FUBotAttitudeCommand Level;
-    IUBotAttitudeCommandable::Execute_ApplyAttitudeCommand(Dynamics, Level);
-    Scope.RunFor(1.0);
-    TestTrue(TEXT("Stays landed without a climb"), Dynamics->IsLanded());
+    // Forward while still pressing down: it slides along the floor at the commanded speed.
+    SendVelocity(*Dynamics, FVector(1.0, 0.0, -1.0));
+    Scope.RunFor(3.0);
+    const FUBotMultirotorState Slid = Dynamics->GetMultirotorState();
+    TestTrue(FString::Printf(TEXT("Moved forward along the floor (%.3f m)"), Slid.PositionMeters.X - OnFloor.PositionMeters.X),
+        Slid.PositionMeters.X - OnFloor.PositionMeters.X >= 1.5);
+    TestTrue(FString::Printf(TEXT("Near 1 m/s (%.3f)"), Slid.LinearVelocityMetersPerSecond.X), FMath::Abs(Slid.LinearVelocityMetersPerSecond.X - 1.0) < 0.15);
+    TestTrue(FString::Printf(TEXT("Still on the floor (%.3f cm)"), Slid.PositionMeters.Z * 100.0), Slid.PositionMeters.Z * 100.0 < 12.0);
 
-    // A climb command takes off.
+    // Climbing right after pressing down: no delay from the time spent on the floor.
     SendVelocity(*Dynamics, FVector(0.0, 0.0, 1.0));
-    double TookOffAt = -1.0;
-    const double CommandAt = Scope.Now();
-    Scope.RunFor(2.5, FrameSeconds, [&] {
-        if (TookOffAt < 0.0 && !Dynamics->IsLanded())
-        {
-            TookOffAt = Scope.Now() - CommandAt;
-        }
-    });
-    TestTrue(FString::Printf(TEXT("Took off within 0.5 s (%.3f)"), TookOffAt), TookOffAt >= 0.0 && TookOffAt <= 0.5);
+    Scope.RunFor(0.5);
+    TestTrue(FString::Printf(TEXT("Climbing after 0.5 s (%.3f m)"), Dynamics->GetMultirotorState().PositionMeters.Z),
+        Dynamics->GetMultirotorState().PositionMeters.Z >= 0.25);
+    Scope.RunFor(2.0);
     TestTrue(FString::Printf(TEXT("At least 1 m up after 2.5 s (%.3f)"), Dynamics->GetMultirotorState().PositionMeters.Z),
         Dynamics->GetMultirotorState().PositionMeters.Z >= 1.0);
     return true;
@@ -183,7 +166,6 @@ bool FUBotAerialDynamicsComponentDefaultsTest::RunTest(const FString& Parameters
     }
     TestTrue(TEXT("Default controller is the cascaded one"), Cast<UUBotCascadedFlightController>(Dynamics->FlightController) != nullptr);
     TestEqual(TEXT("1 kHz physics"), Dynamics->PhysicsRateHz, 1000.0f);
-    TestEqual(TEXT("Crash speed"), Dynamics->CrashImpactSpeedMetersPerSecond, 3.0f);
     TestTrue(TEXT("Velocity commands accepted by default"), Dynamics->bAcceptVelocityCommands);
     TestTrue(TEXT("Attitude commands accepted by default"), Dynamics->bAcceptAttitudeCommands);
     TestTrue(TEXT("Body-rate commands accepted by default"), Dynamics->bAcceptBodyRateCommands);

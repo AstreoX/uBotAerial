@@ -35,7 +35,7 @@ namespace UBotAerialBaseTests
         return A.PositionMeters == B.PositionMeters && A.LinearVelocityMetersPerSecond == B.LinearVelocityMetersPerSecond
             && A.Orientation.X == B.Orientation.X && A.Orientation.Y == B.Orientation.Y && A.Orientation.Z == B.Orientation.Z
             && A.Orientation.W == B.Orientation.W && A.AngularVelocityRadiansPerSecond == B.AngularVelocityRadiansPerSecond
-            && A.FlightState == B.FlightState && A.SimTimeSeconds == B.SimTimeSeconds;
+            && A.SimTimeSeconds == B.SimTimeSeconds;
     }
 }
 

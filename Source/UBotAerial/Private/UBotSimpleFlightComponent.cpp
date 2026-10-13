@@ -4,12 +4,6 @@
 #include "UBotMultirotorCollision.h"
 #include "UBotMultirotorMath.h"
 
-namespace
-{
-    // Below this speed after touching walkable ground (with no climb commanded) the drone lands, m/s.
-    constexpr double LandingSpeed = 0.3;
-}
-
 UUBotSimpleFlightComponent::UUBotSimpleFlightComponent()
 {
     PhysicsRateHz = 500.0f;
@@ -52,7 +46,7 @@ FQuat UUBotSimpleFlightComponent::MakeBodyOrientation() const
     return TiltMode == EUBotSimpleFlightTiltMode::Body ? TiltedAttitude : UBot::Multirotor::MakeYawQuat(Model.Yaw);
 }
 
-void UUBotSimpleFlightComponent::ResetModel(bool bLanded)
+void UUBotSimpleFlightComponent::ResetModel()
 {
     Model = UBot::SimpleFlight::FState();
     Model.Yaw = UBot::Multirotor::GetYaw(Orientation);
@@ -89,26 +83,6 @@ void UUBotSimpleFlightComponent::HandleStopMotion()
 
 void UUBotSimpleFlightComponent::SimulateStep(double StepSeconds)
 {
-    if (FlightState == EUBotMultirotorFlightState::Crashed)
-    {
-        Model.Velocity = FVector::ZeroVector;
-        Model.Acceleration = FVector::ZeroVector;
-        Model.YawRate = 0.0;
-        LinearVelocity = FVector::ZeroVector;
-        AngularVelocity = FVector::ZeroVector;
-        return;
-    }
-    if (FlightState == EUBotMultirotorFlightState::Landed)
-    {
-        if (bBraking || TargetVelocityHeading.Z <= 0.0)
-        {
-            LinearVelocity = FVector::ZeroVector;
-            AngularVelocity = FVector::ZeroVector;
-            return;
-        }
-        SetFlightState(EUBotMultirotorFlightState::Flying);
-    }
-
     UBot::SimpleFlight::FInput Input;
     Input.TargetVelocity = UBot::Multirotor::MakeYawQuat(Model.Yaw).RotateVector(TargetVelocityHeading);
     Input.TargetYawRate = TargetYawRate;
@@ -125,6 +99,7 @@ void UUBotSimpleFlightComponent::SimulateStep(double StepSeconds)
 
     if (Contacts.HasContact())
     {
+        // The surface stops the motion into it; the drone slides along it and keeps following commands.
         ApplyContacts(Contacts, Model.Velocity);
         for (const FHitResult& Hit : Contacts.Hits)
         {
@@ -136,22 +111,6 @@ void UUBotSimpleFlightComponent::SimulateStep(double StepSeconds)
         }
         Model.WindDrift = FVector::ZeroVector;
         LinearVelocity = Model.Velocity;
-
-        const FHitResult* Floor = Contacts.FindFloor();
-        if (FlightState == EUBotMultirotorFlightState::Flying && Floor && IsWalkable(*Floor)
-            && TargetVelocityHeading.Z <= 0.0 && Model.Velocity.Size() < LandingSpeed)
-        {
-            SetFlightState(EUBotMultirotorFlightState::Landed);
-        }
-        if (FlightState != EUBotMultirotorFlightState::Flying)
-        {
-            Model.Velocity = FVector::ZeroVector;
-            Model.Acceleration = FVector::ZeroVector;
-            Model.YawRate = 0.0;
-            LinearVelocity = FVector::ZeroVector;
-            TiltedAttitude = UBot::Multirotor::MakeYawQuat(Model.Yaw);
-            Orientation = TiltedAttitude;
-        }
     }
     AngularVelocity = UBot::Multirotor::BodyRateBetween(Before, Orientation, StepSeconds);
 }
@@ -178,10 +137,6 @@ void UUBotSimpleFlightComponent::UpdateVisuals(double FrameSeconds)
 
 double UUBotSimpleFlightComponent::GetVisualRotorSpeed(int32 RotorIndex) const
 {
-    if (FlightState != EUBotMultirotorFlightState::Flying)
-    {
-        return 0.0;
-    }
     const double G = FMath::Max(GetGravity().Size(), 1e-3);
     return HoverRotorSpeedRadiansPerSecond * FMath::Sqrt((Model.Acceleration - GetGravity()).Size() / G);
 }

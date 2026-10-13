@@ -93,7 +93,7 @@ public:
     virtual void BeginPlay() override;
 
 protected:
-    virtual void ResetModel(bool bLanded) override;
+    virtual void ResetModel() override;
     virtual void SimulateStep(double StepSeconds) override;
     virtual bool AcceptVelocityCommand(const FVector& LinearHeading, double YawRate) override;
     virtual void HandleStopMotion() override;

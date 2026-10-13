@@ -3,30 +3,6 @@
 #include "CoreMinimal.h"
 #include "UBotAerialTypes.generated.h"
 
-/** Flight state of a multirotor. Append new values at the end. */
-UENUM(BlueprintType)
-enum class EUBotMultirotorFlightState : uint8
-{
-    /** Resting on the ground: frozen, level, rotors stopped. A climb command takes off. */
-    Landed,
-    /** In the air. */
-    Flying,
-    /** Hit something faster than the crash speed: rotors stopped, commands are rejected until Reset Flight. */
-    Crashed
-};
-
-/** How a multirotor starts when play begins. Append new values at the end. */
-UENUM(BlueprintType)
-enum class EUBotMultirotorInitialState : uint8
-{
-    /** Landed when walkable ground is within a few centimeters below the drone, otherwise hovering. */
-    Auto,
-    /** Landed where it stands, until a climb command takes off. Use it for a drone placed on the ground. */
-    Landed,
-    /** Hovering where it stands. */
-    Hovering
-};
-
 /** What the simplified flight model tilts. Append new values at the end. */
 UENUM(BlueprintType)
 enum class EUBotSimpleFlightTiltMode : uint8
@@ -67,7 +43,7 @@ enum class EUBotCommandLossAction : uint8
 {
     /** Brake and hold the position. */
     Hover,
-    /** Descend in place until landed. */
+    /** Descend in place at Landing Speed; the ground stops it like any other surface. */
     Land,
     /** Stop all motors (the drone falls). */
     CutMotors
@@ -139,10 +115,6 @@ struct UBOTAERIAL_API FUBotMultirotorState
     /** Rotor speeds in motor order, rad/s (empty for the simplified flight model). */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Multirotor|State")
     TArray<double> RotorSpeedsRadiansPerSecond;
-
-    /** Flight state at this step. */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Multirotor|State")
-    EUBotMultirotorFlightState FlightState = EUBotMultirotorFlightState::Flying;
 
     /** uBot sim time of this step, s. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Multirotor|State")
