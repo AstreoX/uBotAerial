@@ -61,7 +61,7 @@ The plugin has no project of its own. Build it inside a host UE 5.5 project that
 ```
 
 - Every test name starts with `UBotAerial.`; narrow the run with a longer prefix, e.g. `UBotAerial.SimpleFlight`.
-- While the package is unreleased, the uBotCore index lists its version as planned; `UBotCore.Packages.BuiltInIndex` accepts that and still compares the `UBot` block with the index entry. Change both together.
+- The uBotCore index entry of each version must equal the `UBot` block (`UBotCore.Packages.BuiltInIndex` checks it); change both together.
 - Cloud sessions have no Unreal Engine and cannot compile or run tests. Do not claim a build or tests passed. State in the PR that the change is uncompiled and untested, and name the test prefix a maintainer should run.
 
 ## Conventions

@@ -10,7 +10,6 @@
 
 uBotAerial 是 uBot 家族的多旋翼无人机插件，为 UE 5.5 提供三个现成的四旋翼 X 无人机示例蓝图、一张演示地图、风，以及键盘和手柄手动飞行。它建立在 [uBotCore](https://github.com/AstreoX/uBotCore) 之上。
 
-> 0.1.0 尚未发布，发布前类名、属性和默认值还可能变化。
 
 三个示例无人机对应三类研究需要：
 
@@ -771,7 +770,7 @@ uBotSensor 的传感器组件可以直接加到复制出来的示例蓝图（或
 
 ## 版本与许可
 
-当前版本 **0.1.0**（Beta，`IsBetaVersion`），尚未发布；仓库 <https://github.com/AstreoX/uBotAerial>。
+当前版本 **0.1.0**（Beta，`IsBetaVersion`），仓库 <https://github.com/AstreoX/uBotAerial>。
 
 Copyright 2026 AstreoX。本项目的代码以 [Apache License 2.0](LICENSE) 发布，可以自由使用、修改和再分发（包括商业用途），再分发时需保留 `LICENSE` 与 `NOTICE` 文件，并注明你修改过的文件。无人机模型不在其内，见下一节。
 
