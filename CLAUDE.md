@@ -29,7 +29,7 @@ Content rules:
 
 ## Key types
 
-- `UBotAerialTypes.h`: enums (`EUBotMultirotorFlightState`, `EUBotMultirotorInitialState`, `EUBotSimpleFlightTiltMode`, `EUBotRotorSpinDirection`) and structs (`FUBotMultirotorVelocityLimits`, `FUBotMultirotorState`).
+- `UBotAerialTypes.h`: enums (`EUBotSimpleFlightTiltMode`, `EUBotRotorSpinDirection`, `EUBotFlightControlMode`, `EUBotCommandLossAction`, `EUBotMotorCommandMapping`, `EUBotManualFlightMode`) and structs (`FUBotMultirotorVelocityLimits`, `FUBotMultirotorState`, `FUBotRotorSpec`, `FUBotMultirotorAirframe`, `FUBotFlightSetpoint`, `FUBotWindSettings`, `FUBotManualFlightAxes`). There is no flight-state enum (see "Contacts are only contacts").
 - `UBotMultirotorMath.h`: `UBot::Multirotor` (fixed-step clock `FFixedStepClock`, yaw and attitude helpers, velocity clamp, body-rate integration, specific force, quad X layout). `UBotSimpleFlightModel.h`: `UBot::SimpleFlight` (the navigation drone's model).
 - `UUBotMultirotorMovementComponent` (`UBotMultirotorMovementComponent.h`): abstract base. Steps the subclass model on the fixed-step clock, sweeps the root's collision shape (`Private/UBotMultirotorCollision.h`), slides along what it touches (the ground is an ordinary surface: no landed or crashed state), presents the extrapolated pose, implements `IUBotActuator` and `IUBotVelocityCommandable`. Subclasses override `SimulateStep`, `ResetModel`, `AcceptVelocityCommand`, `HandleStopMotion`.
 - `UUBotSimpleFlightComponent`: the navigation drone's flight model (velocity in the heading frame, bounded braking, tilt from acceleration, Visual/Body tilt).
