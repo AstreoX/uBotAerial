@@ -2,10 +2,88 @@
 
 #include "CoreMinimal.h"
 #include "Engine/HitResult.h"
+#include "GameFramework/Pawn.h"
 #include "UBotAerialTypes.h"
 #include "UBotFlightController.h"
 #include "UObject/Object.h"
 #include "UBotAerialTestTypes.generated.h"
+
+class UBoxComponent;
+class USceneComponent;
+class UUBotIdentityComponent;
+class UUBotMultirotorDynamicsComponent;
+class UUBotMultirotorManualInputComponent;
+class UUBotMultirotorMovementComponent;
+class UUBotRotorComponent;
+class UUBotSimpleFlightComponent;
+
+// Test-only quadrotor with the structure the example Blueprints use: a collision box root, a visual root,
+// four rotors without meshes, identity, manual input and a movement component chosen by the subclass.
+UCLASS(Abstract, Transient, NotBlueprintable, NotPlaceable, HideDropdown)
+class AUBotAerialTestDrone : public APawn
+{
+    GENERATED_BODY()
+
+public:
+    AUBotAerialTestDrone(const FObjectInitializer& ObjectInitializer);
+
+    static const FName MovementComponentName;
+    UUBotMultirotorMovementComponent* GetMultirotorMovement() const { return Movement; }
+
+    UPROPERTY()
+    TObjectPtr<UBoxComponent> CollisionBox;
+
+    UPROPERTY()
+    TObjectPtr<USceneComponent> VisualRoot;
+
+    UPROPERTY()
+    TArray<TObjectPtr<UUBotRotorComponent>> Rotors;
+
+    UPROPERTY()
+    TObjectPtr<UUBotIdentityComponent> Identity;
+
+    UPROPERTY()
+    TObjectPtr<UUBotMultirotorManualInputComponent> ManualInput;
+
+    UPROPERTY()
+    TObjectPtr<UUBotMultirotorMovementComponent> Movement;
+};
+
+// Test-only navigation drone using Simple Flight and visual tilt.
+UCLASS(Transient, NotBlueprintable, NotPlaceable, HideDropdown)
+class AUBotAerialTestNavigationDrone : public AUBotAerialTestDrone
+{
+    GENERATED_BODY()
+
+public:
+    AUBotAerialTestNavigationDrone(const FObjectInitializer& ObjectInitializer);
+
+    UUBotSimpleFlightComponent* GetSimpleFlight() const;
+};
+
+// Test-only physics drone with the dynamics component's default command acceptance.
+UCLASS(Transient, NotBlueprintable, NotPlaceable, HideDropdown)
+class AUBotAerialTestPhysicsDrone : public AUBotAerialTestDrone
+{
+    GENERATED_BODY()
+
+public:
+    AUBotAerialTestPhysicsDrone(const FObjectInitializer& ObjectInitializer);
+
+    UUBotMultirotorDynamicsComponent* GetDynamics() const;
+};
+
+// Test-only bare airframe accepting body-rate and motor commands, with manual rate input.
+UCLASS(Transient, NotBlueprintable, NotPlaceable, HideDropdown)
+class AUBotAerialTestBareDrone : public AUBotAerialTestDrone
+{
+    GENERATED_BODY()
+
+public:
+    AUBotAerialTestBareDrone(const FObjectInitializer& ObjectInitializer);
+
+    UUBotMultirotorDynamicsComponent* GetDynamics() const;
+};
 
 // Test-only flight controller: counts calls and returns a constant command for every motor.
 UCLASS(Transient, NotBlueprintable, HideDropdown)

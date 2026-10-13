@@ -134,8 +134,11 @@ public:
     /**
      * Where the rotors are (body frame, m, UE axes) and how they spin, in motor order. The default is a
      * quadrotor X with 0.225 m arms in PX4 order: front right, rear left, front left, rear right.
+     * Place each uBot Rotor at the position of its Rotor Index; at begin play the rotors take their spin
+     * direction from here.
      */
-    virtual void GetRotorLayout(TArray<FVector>& OutPositionsMeters, TArray<EUBotRotorSpinDirection>& OutSpinDirections) const;
+    UFUNCTION(BlueprintPure, Category = "uBot|Aerial|Multirotor", meta = (DisplayName = "Get Rotor Layout", Keywords = "rotor motor position airframe"))
+    virtual void GetRotorLayout(TArray<FVector>& PositionsMeters, TArray<EUBotRotorSpinDirection>& SpinDirections) const;
 
 protected:
     /** Resets the model of the subclass to the current base state. bLanded says how it starts. */

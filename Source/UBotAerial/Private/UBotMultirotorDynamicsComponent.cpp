@@ -66,14 +66,14 @@ double UUBotMultirotorDynamicsComponent::GetHoverMotorCommand() const
     return UBot::Multirotor::GetHoverCommand(Airframe, GetGravity().Size());
 }
 
-void UUBotMultirotorDynamicsComponent::GetRotorLayout(TArray<FVector>& OutPositionsMeters, TArray<EUBotRotorSpinDirection>& OutSpinDirections) const
+void UUBotMultirotorDynamicsComponent::GetRotorLayout(TArray<FVector>& PositionsMeters, TArray<EUBotRotorSpinDirection>& SpinDirections) const
 {
-    OutPositionsMeters.Reset();
-    OutSpinDirections.Reset();
+    PositionsMeters.Reset();
+    SpinDirections.Reset();
     for (const FUBotRotorSpec& Rotor : Airframe.Rotors)
     {
-        OutPositionsMeters.Add(Rotor.PositionMeters);
-        OutSpinDirections.Add(Rotor.SpinDirection);
+        PositionsMeters.Add(Rotor.PositionMeters);
+        SpinDirections.Add(Rotor.SpinDirection);
     }
 }
 

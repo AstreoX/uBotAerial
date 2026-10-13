@@ -7,13 +7,12 @@
 #include "UBotAerial.h"
 #include "UBotAerialTestTypes.h"
 #include "UBotAerialTestWorld.h"
-#include "UBotBareAirframeDrone.h"
 #include "UBotExtensionRegistry.h"
 #include "UBotMultirotorDynamics.h"
 #include "UBotMultirotorDynamicsBackend.h"
 #include "UBotMultirotorDynamicsComponent.h"
 #include "UBotMultirotorMath.h"
-#include "UBotPhysicsDrone.h"
+#include "UBotMultirotorMovementComponent.h"
 #include "UBotRotorComponent.h"
 #include "UObject/StrongObjectPtr.h"
 
@@ -47,8 +46,8 @@ namespace UBotAerialDynamicsTests
         double Yaw() const { return UBot::Multirotor::GetYaw(State().Orientation); }
     };
 
-    using FPhysics = FFlyingDrone<AUBotPhysicsDrone>;
-    using FBare = FFlyingDrone<AUBotBareAirframeDrone>;
+    using FPhysics = FFlyingDrone<AUBotAerialTestPhysicsDrone>;
+    using FBare = FFlyingDrone<AUBotAerialTestBareDrone>;
 
     double HoverRotorSpeed(const FScopedAerialTestWorld& Scope)
     {

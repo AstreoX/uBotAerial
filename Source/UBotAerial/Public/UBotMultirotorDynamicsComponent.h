@@ -97,7 +97,7 @@ public:
     virtual int32 GetMotorCount_Implementation() const override;
     virtual void ReleaseMotorCommand_Implementation() override;
 
-    virtual void GetRotorLayout(TArray<FVector>& OutPositionsMeters, TArray<EUBotRotorSpinDirection>& OutSpinDirections) const override;
+    virtual void GetRotorLayout(TArray<FVector>& PositionsMeters, TArray<EUBotRotorSpinDirection>& SpinDirections) const override;
     virtual void BeginPlay() override;
 
 protected:

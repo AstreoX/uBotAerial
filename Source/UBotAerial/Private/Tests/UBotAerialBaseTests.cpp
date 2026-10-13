@@ -2,8 +2,11 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "UBotAerialTestTypes.h"
 #include "UBotAerialTestWorld.h"
-#include "UBotNavigationDrone.h"
+#include "UBotMultirotorDynamicsComponent.h"
+#include "UBotMultirotorMovementComponent.h"
+#include "UBotRotorComponent.h"
 #include "UBotSimpleFlightComponent.h"
 
 namespace UBotAerialBaseTests
@@ -16,7 +19,7 @@ namespace UBotAerialBaseTests
         FScopedAerialTestWorld Scope;
         Scope.SpawnFloor(0.0);
         Scope.SpawnBox(FVector(450.0, 0.0, 300.0), FVector(50.0, 500.0, 500.0), FRotator(0.0, 20.0, 0.0));
-        AUBotNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, 200.0));
+        AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 200.0));
         UUBotSimpleFlightComponent* Flight = Drone->GetSimpleFlight();
         SendVelocity(*Flight, FVector(2.0, 0.0, 0.3), 0.3);
         Scope.RunFor(2.0, DeltaSeconds);
@@ -42,7 +45,7 @@ bool FUBotAerialBasePauseTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialBaseTests;
     FScopedAerialTestWorld Scope;
-    AUBotNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, 500.0));
+    AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 500.0));
     UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
     if (!TestNotNull(TEXT("Drone"), Flight))
     {
@@ -92,7 +95,7 @@ bool FUBotAerialDeterminismFrameRateTest::RunTest(const FString& Parameters)
     const auto Run = [](float DeltaSeconds, int64& OutSteps)
     {
         FScopedAerialTestWorld Scope;
-        AUBotNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, 500.0));
+        AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 500.0));
         UUBotSimpleFlightComponent* Flight = Drone->GetSimpleFlight();
         SendVelocity(*Flight, FVector(1.5, 0.5, 0.2), 0.2);
         Scope.RunFor(6.0, DeltaSeconds);
@@ -107,6 +110,90 @@ bool FUBotAerialDeterminismFrameRateTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("3000 steps at 24 Hz"), Steps24, static_cast<int64>(3000));
     TestTrue(FString::Printf(TEXT("Same state at step 3000 (%s vs %s)"), *At60.PositionMeters.ToString(), *At24.PositionMeters.ToString()),
         At60.PositionMeters == At24.PositionMeters && At60.LinearVelocityMetersPerSecond == At24.LinearVelocityMetersPerSecond);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialBaseRotorSpinFromLayoutTest, "UBotAerial.Base.RotorSpinFromLayout", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FUBotAerialBaseRotorSpinFromLayoutTest::RunTest(const FString& Parameters)
+{
+    using namespace UBotAerialTests;
+    FScopedAerialTestWorld Scope;
+    AUBotAerialTestNavigationDrone* Drone = Scope.Spawn<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 500.0));
+    if (!TestNotNull(TEXT("Navigation drone"), Drone))
+    {
+        return false;
+    }
+    if (!TestEqual(TEXT("Four navigation rotors"), Drone->Rotors.Num(), 4))
+    {
+        return false;
+    }
+    for (const UUBotRotorComponent* Rotor : Drone->Rotors)
+    {
+        if (!TestNotNull(TEXT("Navigation rotor"), Rotor))
+        {
+            return false;
+        }
+        TestEqual(FString::Printf(TEXT("Rotor %d defaults to clockwise before BeginPlay"), Rotor->RotorIndex),
+            Rotor->SpinDirection, EUBotRotorSpinDirection::Clockwise);
+    }
+
+    Drone->DispatchBeginPlay();
+    TArray<FVector> Positions;
+    TArray<EUBotRotorSpinDirection> Spins;
+    Drone->GetMultirotorMovement()->GetRotorLayout(Positions, Spins);
+    for (const UUBotRotorComponent* Rotor : Drone->Rotors)
+    {
+        if (!TestTrue(TEXT("Navigation rotor index is in the layout"), Spins.IsValidIndex(Rotor->RotorIndex)))
+        {
+            return false;
+        }
+        TestEqual(FString::Printf(TEXT("Navigation rotor %d follows its layout"), Rotor->RotorIndex),
+            Rotor->SpinDirection, Spins[Rotor->RotorIndex]);
+    }
+    TestEqual(TEXT("PX4 rotor 0 is counter-clockwise"), Drone->Rotors[0]->SpinDirection, EUBotRotorSpinDirection::CounterClockwise);
+    TestEqual(TEXT("PX4 rotor 2 is clockwise"), Drone->Rotors[2]->SpinDirection, EUBotRotorSpinDirection::Clockwise);
+
+    Scope.Tick(FrameSeconds);
+    const double Start0 = Drone->Rotors[0]->GetRelativeRotation().Yaw;
+    const double Start2 = Drone->Rotors[2]->GetRelativeRotation().Yaw;
+    Scope.Tick(FrameSeconds);
+    const double Turn0 = FMath::FindDeltaAngleDegrees(Start0, Drone->Rotors[0]->GetRelativeRotation().Yaw);
+    const double Turn2 = FMath::FindDeltaAngleDegrees(Start2, Drone->Rotors[2]->GetRelativeRotation().Yaw);
+    TestTrue(FString::Printf(TEXT("Counter-clockwise rotor turns left (%.2f)"), Turn0), Turn0 < -0.5);
+    TestTrue(FString::Printf(TEXT("Clockwise rotor turns right (%.2f)"), Turn2), Turn2 > 0.5);
+
+    AUBotAerialTestPhysicsDrone* Physics = Scope.Spawn<AUBotAerialTestPhysicsDrone>(FVector(500.0, 0.0, 500.0));
+    UUBotMultirotorDynamicsComponent* Dynamics = Physics ? Physics->GetDynamics() : nullptr;
+    if (!TestNotNull(TEXT("Physics drone dynamics"), Dynamics))
+    {
+        return false;
+    }
+    if (!TestEqual(TEXT("Four physics rotors"), Physics->Rotors.Num(), 4)
+        || !TestEqual(TEXT("Four airframe rotors"), Dynamics->Airframe.Rotors.Num(), 4))
+    {
+        return false;
+    }
+    for (int32 Index = 0; Index < Dynamics->Airframe.Rotors.Num(); ++Index)
+    {
+        EUBotRotorSpinDirection& Spin = Dynamics->Airframe.Rotors[Index].SpinDirection;
+        Spin = Spin == EUBotRotorSpinDirection::Clockwise
+            ? EUBotRotorSpinDirection::CounterClockwise : EUBotRotorSpinDirection::Clockwise;
+    }
+    Physics->DispatchBeginPlay();
+    for (const UUBotRotorComponent* Rotor : Physics->Rotors)
+    {
+        if (!TestNotNull(TEXT("Physics rotor"), Rotor))
+        {
+            return false;
+        }
+        if (!TestTrue(TEXT("Physics rotor index is in the airframe"), Dynamics->Airframe.Rotors.IsValidIndex(Rotor->RotorIndex)))
+        {
+            return false;
+        }
+        TestEqual(FString::Printf(TEXT("Physics rotor %d follows the reversed airframe spin"), Rotor->RotorIndex),
+            Rotor->SpinDirection, Dynamics->Airframe.Rotors[Rotor->RotorIndex].SpinDirection);
+    }
     return true;
 }
 

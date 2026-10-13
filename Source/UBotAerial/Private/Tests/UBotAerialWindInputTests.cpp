@@ -5,13 +5,12 @@
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
+#include "UBotAerialTestTypes.h"
 #include "UBotAerialTestWorld.h"
-#include "UBotBareAirframeDrone.h"
 #include "UBotMultirotorDynamicsComponent.h"
 #include "UBotMultirotorManualInputComponent.h"
 #include "UBotMultirotorMath.h"
-#include "UBotNavigationDrone.h"
-#include "UBotPhysicsDrone.h"
+#include "UBotMultirotorMovementComponent.h"
 #include "UBotSimpleFlightComponent.h"
 #include "UBotWind.h"
 #include "UBotWindSubsystem.h"
@@ -119,7 +118,7 @@ bool FUBotAerialWindPhysicsTest::RunTest(const FString& Parameters)
     using namespace UBotAerialWindInputTests;
     FScopedAerialTestWorld Scope;
     SpawnWind(Scope, MakeWind(FVector(5.0, 0.0, 0.0)));
-    AUBotPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotPhysicsDrone>(FVector(0.0, 0.0, 1000.0));
+    AUBotAerialTestPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestPhysicsDrone>(FVector(0.0, 0.0, 1000.0));
     UUBotMultirotorDynamicsComponent* Dynamics = Drone ? Drone->GetDynamics() : nullptr;
     if (!TestNotNull(TEXT("Physics drone"), Dynamics))
     {
@@ -148,7 +147,7 @@ bool FUBotAerialWindSimpleTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialWindInputTests;
     FScopedAerialTestWorld Scope;
-    AUBotNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, 1000.0));
+    AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 1000.0));
     UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
     if (!TestNotNull(TEXT("Navigation drone"), Flight))
     {
@@ -252,7 +251,7 @@ bool FUBotAerialInputBindingsTest::RunTest(const FString& Parameters)
     }
 
     FScopedAerialTestWorld Scope;
-    AUBotNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, 500.0));
+    AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 500.0));
     UUBotMultirotorManualInputComponent* Input = Drone ? Drone->ManualInput.Get() : nullptr;
     if (!TestNotNull(TEXT("Manual input on the drone"), Input))
     {
@@ -302,8 +301,8 @@ bool FUBotAerialInputBindingsTest::RunTest(const FString& Parameters)
     }
 
     // Each drone flies with the mode it understands.
-    AUBotPhysicsDrone* Physics = Scope.SpawnAndBegin<AUBotPhysicsDrone>(FVector(500.0, 0.0, 500.0));
-    AUBotBareAirframeDrone* Bare = Scope.SpawnAndBegin<AUBotBareAirframeDrone>(FVector(1000.0, 0.0, 500.0));
+    AUBotAerialTestPhysicsDrone* Physics = Scope.SpawnAndBegin<AUBotAerialTestPhysicsDrone>(FVector(500.0, 0.0, 500.0));
+    AUBotAerialTestBareDrone* Bare = Scope.SpawnAndBegin<AUBotAerialTestBareDrone>(FVector(1000.0, 0.0, 500.0));
     TestEqual(TEXT("Navigation drone: velocity"), Drone->ManualInput->FlightMode, EUBotManualFlightMode::Velocity);
     TestEqual(TEXT("Physics drone: velocity"), Physics->ManualInput->FlightMode, EUBotManualFlightMode::Velocity);
     TestEqual(TEXT("Bare airframe: rate"), Bare->ManualInput->FlightMode, EUBotManualFlightMode::Rate);

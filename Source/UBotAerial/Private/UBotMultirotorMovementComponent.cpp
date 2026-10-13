@@ -39,10 +39,18 @@ void UUBotMultirotorMovementComponent::BeginPlay()
     Rotors.Reset();
     if (const AActor* Owner = GetOwner())
     {
+        TArray<FVector> Positions;
+        TArray<EUBotRotorSpinDirection> Spins;
+        GetRotorLayout(Positions, Spins);
         TArray<UUBotRotorComponent*> Found;
         Owner->GetComponents(Found);
         for (UUBotRotorComponent* Rotor : Found)
         {
+            // The airframe decides the spin, so a rotor cannot spin against its motor.
+            if (Spins.IsValidIndex(Rotor->RotorIndex))
+            {
+                Rotor->SpinDirection = Spins[Rotor->RotorIndex];
+            }
             Rotors.Add(Rotor);
         }
     }
@@ -321,9 +329,9 @@ void UUBotMultirotorMovementComponent::SetFlightState(EUBotMultirotorFlightState
     FlightState = NewState;
 }
 
-void UUBotMultirotorMovementComponent::GetRotorLayout(TArray<FVector>& OutPositionsMeters, TArray<EUBotRotorSpinDirection>& OutSpinDirections) const
+void UUBotMultirotorMovementComponent::GetRotorLayout(TArray<FVector>& PositionsMeters, TArray<EUBotRotorSpinDirection>& SpinDirections) const
 {
-    UBot::Multirotor::GetQuadXRotorLayout(0.225, OutPositionsMeters, OutSpinDirections);
+    UBot::Multirotor::GetQuadXRotorLayout(0.225, PositionsMeters, SpinDirections);
 }
 
 FVector UUBotMultirotorMovementComponent::SampleWind() const

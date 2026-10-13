@@ -2,15 +2,12 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "Components/BoxComponent.h"
 #include "UBotAerialTestTypes.h"
 #include "UBotAerialTestWorld.h"
-#include "UBotBareAirframeDrone.h"
 #include "UBotCascadedFlightController.h"
 #include "UBotMultirotorDynamicsComponent.h"
 #include "UBotMultirotorMath.h"
-#include "UBotPhysicsDrone.h"
-#include "UBotRotorComponent.h"
+#include "UBotMultirotorMovementComponent.h"
 #include "UObject/StrongObjectPtr.h"
 
 namespace UBotAerialPhysicsTests
@@ -31,7 +28,7 @@ namespace UBotAerialPhysicsTests
         FScopedAerialTestWorld Scope;
         Scope.SpawnFloor(0.0);
         Scope.SpawnBox(FVector(600.0, 0.0, 300.0), FVector(50.0, 500.0, 500.0), FRotator(0.0, 30.0, 0.0));
-        AUBotPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotPhysicsDrone>(FVector(0.0, 0.0, 200.0));
+        AUBotAerialTestPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestPhysicsDrone>(FVector(0.0, 0.0, 200.0));
         UUBotMultirotorDynamicsComponent* Dynamics = Drone->GetDynamics();
         SendVelocity(*Dynamics, FVector(2.0, 0.0, 0.5), 0.4);
         Scope.RunFor(3.0, DeltaSeconds);
@@ -54,7 +51,7 @@ bool FUBotAerialPhysicsCrashTest::RunTest(const FString& Parameters)
     Scope.SpawnFloor(0.0);
     // Wall face 8 m ahead.
     Scope.SpawnBox(FVector(850.0, 0.0, 500.0), FVector(50.0, 1000.0, 1000.0));
-    AUBotPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotPhysicsDrone>(FVector(0.0, 0.0, 300.0));
+    AUBotAerialTestPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestPhysicsDrone>(FVector(0.0, 0.0, 300.0));
     UUBotMultirotorDynamicsComponent* Dynamics = Drone ? Drone->GetDynamics() : nullptr;
     if (!TestNotNull(TEXT("Physics drone"), Dynamics))
     {
@@ -104,7 +101,7 @@ bool FUBotAerialPhysicsLandTakeOffTest::RunTest(const FString& Parameters)
     using namespace UBotAerialPhysicsTests;
     FScopedAerialTestWorld Scope;
     Scope.SpawnFloor(0.0);
-    AUBotPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotPhysicsDrone>(FVector(0.0, 0.0, 200.0));
+    AUBotAerialTestPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestPhysicsDrone>(FVector(0.0, 0.0, 200.0));
     UUBotMultirotorDynamicsComponent* Dynamics = Drone ? Drone->GetDynamics() : nullptr;
     if (!TestNotNull(TEXT("Physics drone"), Dynamics))
     {
@@ -160,7 +157,7 @@ bool FUBotAerialPhysicsDeterminismTest::RunTest(const FString& Parameters)
     const auto Run = [](float DeltaSeconds)
     {
         FScopedAerialTestWorld Scope;
-        AUBotPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotPhysicsDrone>(FVector(0.0, 0.0, 1000.0));
+        AUBotAerialTestPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestPhysicsDrone>(FVector(0.0, 0.0, 1000.0));
         SendVelocity(*Drone->GetDynamics(), FVector(1.5, -0.5, 0.3), 0.2);
         Scope.RunFor(3.0, DeltaSeconds);
         return Drone->GetDynamics()->GetMultirotorState();
@@ -172,42 +169,25 @@ bool FUBotAerialPhysicsDeterminismTest::RunTest(const FString& Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialPawnPhysicsTest, "UBotAerial.Pawn.Physics.Components", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialDynamicsComponentDefaultsTest, "UBotAerial.Dynamics.ComponentDefaults", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FUBotAerialPawnPhysicsTest::RunTest(const FString& Parameters)
+bool FUBotAerialDynamicsComponentDefaultsTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialTests;
     FScopedAerialTestWorld Scope;
-    AUBotPhysicsDrone* Physics = Scope.SpawnAndBegin<AUBotPhysicsDrone>(FVector(0.0, 0.0, 500.0));
-    AUBotBareAirframeDrone* Bare = Scope.SpawnAndBegin<AUBotBareAirframeDrone>(FVector(500.0, 0.0, 500.0));
-    if (!TestNotNull(TEXT("Physics drone"), Physics) || !TestNotNull(TEXT("Bare airframe"), Bare))
+    AUBotAerialTestPhysicsDrone* Physics = Scope.SpawnAndBegin<AUBotAerialTestPhysicsDrone>(FVector(0.0, 0.0, 500.0));
+    UUBotMultirotorDynamicsComponent* Dynamics = Physics ? Physics->GetDynamics() : nullptr;
+    if (!TestNotNull(TEXT("Movement is Multirotor Dynamics"), Dynamics))
     {
         return false;
     }
-    for (AUBotMultirotorPawn* Drone : { static_cast<AUBotMultirotorPawn*>(Physics), static_cast<AUBotMultirotorPawn*>(Bare) })
-    {
-        UUBotMultirotorDynamicsComponent* Dynamics = Cast<UUBotMultirotorDynamicsComponent>(Drone->GetMultirotorMovement());
-        if (!TestNotNull(TEXT("Movement is Multirotor Dynamics"), Dynamics))
-        {
-            continue;
-        }
-        TestTrue(TEXT("Default controller is the cascaded one"), Cast<UUBotCascadedFlightController>(Dynamics->FlightController) != nullptr);
-        TestEqual(TEXT("1 kHz physics"), Dynamics->PhysicsRateHz, 1000.0f);
-        TestEqual(TEXT("Crash speed"), Dynamics->CrashImpactSpeedMetersPerSecond, 3.0f);
-        TArray<FVector> Positions;
-        TArray<EUBotRotorSpinDirection> Spins;
-        Dynamics->GetRotorLayout(Positions, Spins);
-        for (int32 Index = 0; Index < 4; ++Index)
-        {
-            const FVector Location = Drone->Rotors[Index]->GetRelativeLocation();
-            TestTrue(FString::Printf(TEXT("Rotor %d at its airframe position"), Index),
-                FVector2D(Location).Equals(FVector2D(Positions[Index] * 100.0), 0.1));
-        }
-    }
-    TestTrue(TEXT("Physics drone accepts velocity"), Physics->GetDynamics()->bAcceptVelocityCommands && Physics->GetDynamics()->bAcceptAttitudeCommands);
-    TestFalse(TEXT("Bare airframe refuses velocity"), Bare->GetDynamics()->bAcceptVelocityCommands);
-    TestFalse(TEXT("Bare airframe refuses attitude"), Bare->GetDynamics()->bAcceptAttitudeCommands);
-    TestTrue(TEXT("Bare airframe takes body rates and motors"), Bare->GetDynamics()->bAcceptBodyRateCommands && Bare->GetDynamics()->bAcceptMotorCommands);
+    TestTrue(TEXT("Default controller is the cascaded one"), Cast<UUBotCascadedFlightController>(Dynamics->FlightController) != nullptr);
+    TestEqual(TEXT("1 kHz physics"), Dynamics->PhysicsRateHz, 1000.0f);
+    TestEqual(TEXT("Crash speed"), Dynamics->CrashImpactSpeedMetersPerSecond, 3.0f);
+    TestTrue(TEXT("Velocity commands accepted by default"), Dynamics->bAcceptVelocityCommands);
+    TestTrue(TEXT("Attitude commands accepted by default"), Dynamics->bAcceptAttitudeCommands);
+    TestTrue(TEXT("Body-rate commands accepted by default"), Dynamics->bAcceptBodyRateCommands);
+    TestTrue(TEXT("Motor commands accepted by default"), Dynamics->bAcceptMotorCommands);
     return true;
 }
 

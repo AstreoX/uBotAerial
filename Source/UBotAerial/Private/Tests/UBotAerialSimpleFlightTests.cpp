@@ -4,9 +4,11 @@
 
 #include <limits>
 
+#include "Components/SceneComponent.h"
+#include "UBotAerialTestTypes.h"
 #include "UBotAerialTestWorld.h"
 #include "UBotMultirotorMath.h"
-#include "UBotNavigationDrone.h"
+#include "UBotMultirotorMovementComponent.h"
 #include "UBotSimpleFlightComponent.h"
 
 namespace UBotAerialSimpleFlightTests
@@ -17,12 +19,12 @@ namespace UBotAerialSimpleFlightTests
     struct FHoveringDrone
     {
         FScopedAerialTestWorld Scope;
-        AUBotNavigationDrone* Drone = nullptr;
+        AUBotAerialTestNavigationDrone* Drone = nullptr;
         UUBotSimpleFlightComponent* Flight = nullptr;
 
         explicit FHoveringDrone(EUBotSimpleFlightTiltMode TiltMode = EUBotSimpleFlightTiltMode::Visual)
         {
-            Drone = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, 1000.0));
+            Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 1000.0));
             Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
             if (Flight)
             {

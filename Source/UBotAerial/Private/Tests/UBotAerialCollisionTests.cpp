@@ -4,7 +4,7 @@
 
 #include "UBotAerialTestTypes.h"
 #include "UBotAerialTestWorld.h"
-#include "UBotNavigationDrone.h"
+#include "UBotMultirotorMovementComponent.h"
 #include "UBotRotorComponent.h"
 #include "UBotSimpleFlightComponent.h"
 #include "UObject/StrongObjectPtr.h"
@@ -35,7 +35,7 @@ bool FUBotAerialCollisionWallStopTest::RunTest(const FString& Parameters)
     FScopedAerialTestWorld Scope;
     // Wall face at x = 200 cm.
     Scope.SpawnBox(FVector(250.0, 0.0, 300.0), FVector(50.0, 500.0, 500.0));
-    AUBotNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, 300.0));
+    AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 300.0));
     UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
     if (!TestNotNull(TEXT("Drone"), Flight))
     {
@@ -70,7 +70,7 @@ bool FUBotAerialCollisionSlideTest::RunTest(const FString& Parameters)
     FScopedAerialTestWorld Scope;
     // A wall turned 45 degrees ahead: flying forward into it slides toward -Y.
     Scope.SpawnBox(FVector(300.0, 0.0, 300.0), FVector(50.0, 2000.0, 500.0), FRotator(0.0, 45.0, 0.0));
-    AUBotNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, 300.0));
+    AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 300.0));
     UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
     if (!TestNotNull(TEXT("Drone"), Flight))
     {
@@ -93,7 +93,7 @@ bool FUBotAerialCollisionLandTakeOffTest::RunTest(const FString& Parameters)
     using namespace UBotAerialCollisionTests;
     FScopedAerialTestWorld Scope;
     Scope.SpawnFloor(0.0);
-    AUBotNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, 100.0));
+    AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 100.0));
     UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
     if (!TestNotNull(TEXT("Drone"), Flight))
     {
@@ -157,7 +157,7 @@ bool FUBotAerialCollisionInitialStateTest::RunTest(const FString& Parameters)
     Scope.SpawnFloor(0.0);
 
     // 2 cm above the floor: Auto lands and snaps down.
-    AUBotNavigationDrone* Low = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, HalfHeightCm + 2.0));
+    AUBotAerialTestNavigationDrone* Low = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, HalfHeightCm + 2.0));
     TestTrue(TEXT("Auto starts landed near the ground"), Low && Low->GetSimpleFlight()->IsLanded());
     if (Low)
     {
@@ -165,15 +165,15 @@ bool FUBotAerialCollisionInitialStateTest::RunTest(const FString& Parameters)
     }
 
     // 3 m up: Auto hovers.
-    AUBotNavigationDrone* High = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(500.0, 0.0, 300.0));
+    AUBotAerialTestNavigationDrone* High = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(500.0, 0.0, 300.0));
     TestTrue(TEXT("Auto hovers in the air"), High && High->GetSimpleFlight()->GetFlightState() == EUBotMultirotorFlightState::Flying);
 
     // Hovering on the ground stays flying; Landed in the air stays landed until a climb.
-    AUBotNavigationDrone* Hovering = Scope.Spawn<AUBotNavigationDrone>(FVector(1000.0, 0.0, HalfHeightCm + 2.0));
+    AUBotAerialTestNavigationDrone* Hovering = Scope.Spawn<AUBotAerialTestNavigationDrone>(FVector(1000.0, 0.0, HalfHeightCm + 2.0));
     Hovering->GetSimpleFlight()->InitialState = EUBotMultirotorInitialState::Hovering;
     Hovering->DispatchBeginPlay();
     TestEqual(TEXT("Hovering forced"), Hovering->GetSimpleFlight()->GetFlightState(), EUBotMultirotorFlightState::Flying);
-    AUBotNavigationDrone* Parked = Scope.Spawn<AUBotNavigationDrone>(FVector(1500.0, 0.0, 300.0));
+    AUBotAerialTestNavigationDrone* Parked = Scope.Spawn<AUBotAerialTestNavigationDrone>(FVector(1500.0, 0.0, 300.0));
     Parked->GetSimpleFlight()->InitialState = EUBotMultirotorInitialState::Landed;
     Parked->DispatchBeginPlay();
     Scope.RunFor(0.5);
@@ -198,7 +198,7 @@ bool FUBotAerialCollisionExternalTeleportTest::RunTest(const FString& Parameters
 {
     using namespace UBotAerialCollisionTests;
     FScopedAerialTestWorld Scope;
-    AUBotNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotNavigationDrone>(FVector(0.0, 0.0, 300.0));
+    AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 300.0));
     UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
     if (!TestNotNull(TEXT("Drone"), Flight))
     {

@@ -7,7 +7,8 @@
 
 /**
  * Visual rotor of a multirotor: a mesh spinning about its local Z axis. The multirotor movement
- * component sets the rotor speed every frame from its motor with the same Rotor Index.
+ * component on the same actor sets the rotor speed every frame from its motor with the same Rotor
+ * Index, and the spin direction at begin play from its rotor layout.
  */
 UCLASS(ClassGroup = (uBot), meta = (BlueprintSpawnableComponent, DisplayName = "uBot Rotor"))
 class UBOTAERIAL_API UUBotRotorComponent : public UStaticMeshComponent
@@ -21,8 +22,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rotor", meta = (ClampMin = "0"))
     int32 RotorIndex = 0;
 
-    /** Spin direction seen from above. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rotor")
+    /** Spin direction seen from above, taken from the movement component's rotor layout at begin play. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rotor")
     EUBotRotorSpinDirection SpinDirection = EUBotRotorSpinDirection::Clockwise;
 
     /** Display speed as a share of the real rotor speed: real speeds alias at frame rate, so the blades are shown slower. */
