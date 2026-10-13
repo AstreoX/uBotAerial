@@ -8,7 +8,7 @@
     "CreatedBy": "AstreoX",
     "CreatedByURL": "https://github.com/AstreoX",
     "DocsURL": "https://github.com/AstreoX/uBotAerial",
-    "CanContainContent": false,
+    "CanContainContent": true,
     "IsBetaVersion": true,
     "Plugins": [
         {

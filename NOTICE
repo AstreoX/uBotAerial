@@ -3,3 +3,20 @@ Copyright 2026 AstreoX
 
 This product is licensed under the Apache License, Version 2.0.
 See the LICENSE file or https://www.apache.org/licenses/LICENSE-2.0
+
+Third-party content
+-------------------
+
+The drone model in Content/Models (SM_UBotDrone_*, M_UBotDrone, T_UBotDrone_*) is
+based on "Animated Drone" by HARTWEL JUNIOR KISAKA, from Fab:
+https://www.fab.com/listings/c1f5f392-330a-418c-b0b0-e3c89639347f
+It is licensed under the Creative Commons Attribution 4.0 International License
+(CC BY 4.0): https://creativecommons.org/licenses/by/4.0/
+The Apache License does not apply to it.
+
+Changes made: converted from a skinned glTF model to static meshes (one body mesh
+and clockwise and counter-clockwise propeller meshes centered on their hubs),
+scaled by 2, re-oriented so the nose faces +X, all materials merged into one,
+textures resized to 1024x1024 and converted from specular-glossiness to
+metallic-roughness, normal map green channel flipped. The animations are not
+included.

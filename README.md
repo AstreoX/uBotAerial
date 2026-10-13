@@ -8,22 +8,22 @@
 
 ## 简介
 
-uBotAerial 是 uBot 家族的多旋翼无人机插件，为 UE 5.5 提供三种现成的四旋翼 X 无人机、风，以及键盘和手柄手动飞行。它建立在 [uBotCore](https://github.com/AstreoX/uBotCore) 之上。
+uBotAerial 是 uBot 家族的多旋翼无人机插件，为 UE 5.5 提供三个现成的四旋翼 X 无人机示例蓝图、一张演示地图、风，以及键盘和手柄手动飞行。它建立在 [uBotCore](https://github.com/AstreoX/uBotCore) 之上。
 
 > 0.1.0 尚未发布，发布前类名、属性和默认值还可能变化。
 
-三种无人机对应三类研究需要：
+三个示例无人机对应三类研究需要：
 
 | 无人机 | 适合 | 接收的指令 |
 | --- | --- | --- |
-| `uBot Navigation Drone` | 导航、规划、感知，不关心飞控 | 速度、偏航角速度 |
-| `uBot Physics Drone` | 需要真实的动力学，直接用内置飞控 | 速度、姿态、角速度、单电机 |
-| `uBot Bare Airframe Drone` | 研究飞控，控制器自己写 | 角速度、单电机 |
+| `BP_UBotNavigationDrone` | 导航、规划、感知，不关心飞控 | 速度、偏航角速度 |
+| `BP_UBotPhysicsDrone` | 需要真实的动力学，直接用内置飞控 | 速度、姿态、角速度、单电机 |
+| `BP_UBotBareAirframeDrone` | 研究飞控，控制器自己写 | 角速度、单电机 |
 
-- **蓝图优先**：无人机是可以直接放进关卡、也可以作为蓝图父类的 Pawn；飞行模型、风和手动输入都有蓝图接口。
+- **蓝图优先**：三架无人机是插件 Content 里的示例蓝图，由插件的 C++ 组件拼成，可以直接放进关卡，也可以复制出来修改或照着自己拼；飞行模型、风和手动输入都有蓝图接口。
 - **没有 ROS 依赖**：插件不含 ROS 代码。用 ROS 2 控制无人机时配合 [uBotROS](https://github.com/AstreoX/uBotROS)，它通过 UBotCore 的指令接口驱动这里的无人机。
 - **可复现**：飞行模型按 uBot 仿真时间以固定步长推进，同样的帧间隔给出逐位相同的结果。
-- **没有内容资源**：机体由引擎自带的基本形状在 C++ 里搭出，插件不含 `.uasset`。
+- **示例内容**：插件带三个示例蓝图、演示地图 `L_UBotAerialDemo` 和一套无人机模型（来源和授权见“模型来源与授权”）。示例蓝图不含节点逻辑，行为都在 C++ 组件里。
 
 ## 在 uBot 家族中的位置
 
@@ -37,7 +37,7 @@ uBotAerial 是 **Capability**（能力）层，依赖 `UBotCore ^0.1.2`（姿态
 
 | 模块 | 类型 | 加载阶段 | 说明 |
 | --- | --- | --- | --- |
-| `UBotAerial` | Runtime | Default | 无人机、飞行模型、飞控、风、手动输入 |
+| `UBotAerial` | Runtime | Default | 飞行模型、飞控、旋翼、风、手动输入 |
 
 `"UBot"` 块声明的能力键（`Provides`）：`Actuation.Velocity`、`Actuation.Attitude`、`Actuation.Motor`、`Body.Multirotor`、`Aerial.Wind`；标签 `aerial`。模块依赖 `Core`、`CoreUObject`、`Engine`、`EnhancedInput`、`InputCore` 和 `UBotCore`，日志类别只有 `LogUBotAerial`。
 
@@ -62,7 +62,7 @@ uBotAerial 是 **Capability**（能力）层，依赖 `UBotCore ^0.1.2`（姿态
    ]
    ```
 
-3. 重启编辑器。无人机在「Place Actors」面板里搜索 uBot 即可找到；组件在 Add Component 菜单的 **uBot** 分类下，显示名形如 `uBot Simple Flight`。
+3. 重启编辑器。示例无人机在插件的 Content 里，见“快速开始”；组件在 Add Component 菜单的 **uBot** 分类下，显示名形如 `uBot Simple Flight`。
 
 C++ 工程使用时，在自己模块的 `Build.cs` 中加入 `"UBotCore"` 和 `"UBotAerial"`。
 
@@ -70,59 +70,109 @@ C++ 工程使用时，在自己模块的 `Build.cs` 中加入 `"UBotCore"` 和 `
 
 ## 快速开始
 
-1. 把 `uBot Navigation Drone` 拖进关卡。`InitialState` 默认是 `Auto`：脚下 5 cm 以内有可着陆的地面时落地待命，否则悬停。
-2. 让玩家控制它：在 Details 里把 `Auto Possess Player` 设为 Player 0，或在 GameMode 里把 `Default Pawn Class` 设为它。
-3. 点「Play」。Space 起飞，W / A / S / D 平移，E / Q 偏航，Left Ctrl 下降。
-4. 不用玩家控制时，在蓝图里对 `Get Multirotor Movement` 的返回值调用 `Apply Velocity Command`：`Linear Velocity Meters Per Second` 填 (2, 0, 0)，`Angular Velocity Radians Per Second` 填 (0, 0, 0.5)。无人机以 2 m/s 前进并向右偏航，直到新指令替换它或调用 `Stop Motion`。
+先看演示地图：
 
-把无人机放在地面上时，根组件中心离地 9 cm，碰撞盒刚好贴地。
+1. 在 Content Browser 里打开 `Settings > Show Plugin Content`，才看得到插件的内容。
+2. 打开 `/UBotAerial/Maps/L_UBotAerialDemo`，点「Play」。地图里的物理无人机已设为由 Player 0 控制：Space 起飞，W / A / S / D 平移，E / Q 偏航，Left Ctrl 下降。要飞另一架，把 `Auto Possess Player` 移到它身上，见“演示地图”。
+
+放进自己的关卡：
+
+1. 把 `/UBotAerial/Examples/BP_UBotNavigationDrone` 拖进关卡。`InitialState` 默认是 `Auto`：脚下 5 cm 以内有可着陆的地面时落地待命，否则悬停。
+2. 让玩家控制它：在 Details 里把 `Auto Possess Player` 设为 Player 0，或在 GameMode 里把 `Default Pawn Class` 设为它。
+3. 点「Play」，按键同上。
+4. 不用玩家控制时，在蓝图里用 `Find Multirotor Movement`（或对无人机用 `Get Component by Class`）取得 `Movement` 组件，对它调用 `Apply Velocity Command`：`Linear Velocity Meters Per Second` 填 (2, 0, 0)，`Angular Velocity Radians Per Second` 填 (0, 0, 0.5)。无人机以 2 m/s 前进并向右偏航，直到新指令替换它或调用 `Stop Motion`。
+
+要修改示例，先把它复制到自己的工程里，见“示例内容”。
+
+把无人机放在地面上时，根组件中心离地 6.7 cm（碰撞盒的半高），碰撞盒刚好贴地。
 
 ## 三种无人机
 
-三种无人机的机体、碰撞、相机、手动输入和指令入口都一样，区别只在 `Movement` 组件用哪一种飞行模型。
+三个示例蓝图的机体、碰撞、相机、手动输入和指令入口都一样，区别只在 `Movement` 组件用哪一种飞行模型。
 
-| | `uBot Navigation Drone` | `uBot Physics Drone` | `uBot Bare Airframe Drone` |
+| | `BP_UBotNavigationDrone` | `BP_UBotPhysicsDrone` | `BP_UBotBareAirframeDrone` |
 | --- | --- | --- | --- |
-| 类 | `AUBotNavigationDrone` | `AUBotPhysicsDrone` | `AUBotBareAirframeDrone` |
 | 飞行模型 | `uBot Simple Flight` | `uBot Multirotor Dynamics` | `uBot Multirotor Dynamics` |
 | 适合 | 导航、规划、感知 | 需要真实动力学，用内置飞控 | 研究飞控，控制器自己写 |
 | 接受的指令 | 速度 + 偏航角速度 | 速度、姿态、角速度、电机 | 角速度、电机 |
 | 拒绝的指令 | 姿态、角速度、电机（没有对应接口） | 无 | 速度、姿态 |
 | 物理步频 `PhysicsRateHz` | 500 Hz | 1000 Hz | 1000 Hz |
 | 坠毁速度 `CrashImpactSpeedMetersPerSecond` | 0（不会坠毁） | 3 m/s | 3 m/s |
-| 手动飞行默认模式 | `Velocity` | `Velocity` | `Rate` |
+| 示例里的手动飞行模式 | `Velocity` | `Velocity` | `Rate` |
 | 旋翼转速 | 只用于显示 | 真实的电机转速 | 真实的电机转速 |
 | 风 | 简化响应 | 相对空气的阻力 | 相对空气的阻力 |
 
+### 示例内容
+
+插件的 Content 在 Content Browser 里默认不显示，打开 `Settings > Show Plugin Content` 后可见：
+
+| 路径 | 内容 |
+| --- | --- |
+| `/UBotAerial/Examples/` | `BP_UBotNavigationDrone`、`BP_UBotPhysicsDrone`、`BP_UBotBareAirframeDrone`，父类是 Pawn，不含节点逻辑 |
+| `/UBotAerial/Maps/L_UBotAerialDemo` | 演示地图，见“演示地图” |
+| `/UBotAerial/Models/` | 无人机模型：`SM_UBotDrone_Body`、`SM_UBotDrone_Propeller_CW`、`SM_UBotDrone_Propeller_CCW`、材质 `M_UBotDrone`、贴图 `T_UBotDrone_BaseColor`、`T_UBotDrone_ORM`、`T_UBotDrone_Normal` |
+
+示例可以直接放进关卡使用。要修改，先复制到自己的工程再改：在示例上右键 `Duplicate` 后移到 `/Game` 下，或用 `Asset Actions > Migrate`，改复制出来的那一份。直接改插件里的原资产，更新插件时改动会丢失。
+
+### 演示地图
+
+`/UBotAerial/Maps/L_UBotAerialDemo` 里有：
+
+- 一块大的网格地面、一堵墙、一堵 45° 的斜墙（用来沿墙滑动）、一个 1 m 高的着陆平台和一根立柱；
+- 三个示例无人机并排，各有名称标签；墙上有操作提示；
+- 一个默认关闭的 `uBot Wind`：恒定风 (0, 5, 0) m/s，阵风标准差 (1, 1, 0.3) m/s。把它打开，可以看到物理无人机迎风倾斜；
+- World Settings 的 `GameMode Override` 是 `GameModeBase`；物理无人机的 `Auto Possess Player` 是 Player 0。
+
+打开地图点「Play」即可飞。要飞另一架，把 `Auto Possess Player` 设到它身上，原来那架改回 `Disabled`。
+
 ### 机体与组件
 
-三种无人机继承同一个抽象基类 `uBot Multirotor Pawn`（`AUBotMultirotorPawn`）。机体由引擎自带的基本形状搭成，带 4 个旋翼。
+三个示例蓝图的父类是 Pawn，组件完全相同。下面的变量名就是组件名，加传感器、改属性、用 Get Component 找组件时按它们找。
 
-| 组件（变量名） | 说明 |
-| --- | --- |
-| `CollisionBox` | 根组件，Pawn 碰撞预设，半尺寸 29 × 29 × 9 cm（整体 58 × 58 × 18 cm），盖住旋翼盘。飞行模型移动它 |
-| `VisualRoot` | 所有网格的父级。导航无人机的 `Visual` 倾斜作用于它 |
-| `Body`、`FrontMarker`、`Arms`、`Motors` | 机身、机头标记（橙色锥体）、机臂、电机，都没有碰撞 |
-| `Rotors` | 4 个 `uBot Rotor`，随对应电机的转速旋转 |
-| `CameraBoom`、`Camera` | 跟随相机，见“手动飞行” |
-| `Identity` | `uBot Identity`：机器人 ID、ROS 命名空间、基坐标系 |
-| `ManualInput` | `uBot Multirotor Manual Input`，见“手动飞行” |
-| `Movement` | 飞行模型，类由具体的无人机决定 |
-
-要改飞行模型的属性或加组件，用无人机的子类蓝图，在 Components 面板里选 `Movement`。
-
-`uBot Rotor` 的 `RotorIndex` 是电机序号，旋向取自机架。显示的转速是真实转速乘 `VisualSpinScale`（0.04），避免在帧率下混叠。
-
-机体网格的 4 个旋翼按机架的前 4 个转子摆放。电机序号和位置（机体系，X 前、Y 右）：
-
-| 电机 | 位置 | 旋向（俯视） |
+| 组件（变量名） | 类型 | 说明 |
 | --- | --- | --- |
-| 0 | 右前 | 逆时针 |
-| 1 | 左后 | 逆时针 |
-| 2 | 左前 | 顺时针 |
-| 3 | 右后 | 顺时针 |
+| `CollisionBox`（根） | Box | 半尺寸 (19.5, 25.4, 6.7) cm（整体 39 × 50.8 × 13.4 cm），碰撞预设 Pawn，不模拟物理。飞行模型扫掠这个形状 |
+| `VisualRoot` | Scene | 网格的父级。导航无人机的 `Visual` 倾斜作用于它 |
+| `Body` | Static Mesh | `SM_UBotDrone_Body`，没有碰撞 |
+| `Rotor0`..`Rotor3` | `uBot Rotor` | 桨叶网格放在电机轴上，`Rotor Index` 为 0..3，按 PX4 四旋翼 X 的电机顺序；0、1 用 `SM_UBotDrone_Propeller_CCW`，2、3 用 `SM_UBotDrone_Propeller_CW`。随对应电机的转速旋转 |
+| `CameraBoom` / `Camera` | Spring Arm / Camera | 跟随相机，见“手动飞行” |
+| `Identity` | `uBot Identity` | 机器人 ID、ROS 命名空间、基坐标系 |
+| `ManualInput` | `uBot Multirotor Manual Input` | 键盘和手柄，见“手动飞行” |
+| `Movement` | `uBot Simple Flight` 或 `uBot Multirotor Dynamics` | 飞行模型，导航示例用前者，物理和裸机架示例用后者 |
 
-默认机架的臂长是 0.225 m，转子位于 (±D, ±D)，D = 0.225 / √2 ≈ 0.159 m。机体受到与转子旋向相反的反扭矩。
+蓝图本身的默认值：`Auto Possess AI` 是 `Disabled`，`Start with Tick Enabled` 关闭（行为都在组件里）。
+
+三个示例在 `Movement` 上的设置：
+
+| 示例 | `Movement` 的设置 |
+| --- | --- |
+| `BP_UBotNavigationDrone` | `uBot Simple Flight`，`Visual Component` 指向 `VisualRoot` |
+| `BP_UBotPhysicsDrone` | `uBot Multirotor Dynamics`；`Airframe` 的转子位置设为模型的电机轴（下表），质量、转动惯量和转子系数保持默认（1.5 kg，450 mm 级） |
+| `BP_UBotBareAirframeDrone` | 同物理示例，另外 `Accept Velocity Commands` 和 `Accept Attitude Commands` 关闭，`ManualInput` 的 `Flight Mode` 为 `Rate` |
+
+要改飞行模型的属性或加组件，在复制出来的蓝图的 Components 面板里选 `Movement`。
+
+`uBot Rotor` 的 `RotorIndex` 是电机序号。`Spin Direction` 由 `Movement` 在 BeginPlay 时按序号从飞行模型的转子布局设置，在 Details 里只读；布局可以用 `Get Rotor Layout` 读出，返回按电机序号排列的转子位置（m，机体系，UE 轴）和旋向。显示的转速是真实转速乘 `VisualSpinScale`（0.04），避免在帧率下混叠。
+
+示例里 4 个旋翼放在模型的电机轴上，相对根组件为 (±14.53, ±17.08, 4.75) cm。电机序号和位置（机体系，X 前、Y 右），最后一列是物理示例机架里的转子位置：
+
+| 电机 | 位置 | 旋向（俯视） | 转子位置（m） |
+| --- | --- | --- | --- |
+| 0 | 右前 | 逆时针 | (0.1453, 0.1708) |
+| 1 | 左后 | 逆时针 | (−0.1453, −0.1708) |
+| 2 | 左前 | 顺时针 | (0.1453, −0.1708) |
+| 3 | 右后 | 顺时针 | (−0.1453, 0.1708) |
+
+默认机架的臂长是 0.225 m，转子位于 (±D, ±D)，D = 0.225 / √2 ≈ 0.159 m；物理示例的机架只把转子位置换成上表（模型的臂长 0.224 m，与默认几乎相同）。机体受到与转子旋向相反的反扭矩。
+
+### 自己拼一架无人机
+
+最简单的办法是复制一个示例再改。从零拼：
+
+1. 新建一个 Pawn（或 Actor）蓝图。根组件用一个碰撞形状（Box、Sphere 或 Capsule）：飞行模型扫掠的是根组件的形状。
+2. 加 `uBot Simple Flight`（导航）或 `uBot Multirotor Dynamics`（物理）。它以根组件为 `Updated Component`，不需要另外指定。用 `Visual` 倾斜时，把 `Visual Component` 指向要倾斜的 Scene 组件。
+3. 可选：加 `uBot Rotor` 组件，`Rotor Index` 设为电机序号，放在 `Get Rotor Layout` 返回的位置（m）乘 100 cm 处，相对根组件。它们的旋向随机架自动设置。
+4. 可选：加 `uBot Multirotor Manual Input` 用键盘和手柄飞，加 `uBot Identity` 设机器人 ID 和 ROS 命名空间，加弹簧臂相机（把 `Inherit Pitch` 和 `Inherit Roll` 关掉，视角才不会随机体倾斜）。
 
 ### 共有属性
 
@@ -199,7 +249,7 @@ C++ 工程使用时，在自己模块的 `Build.cs` 中加入 `"UBotCore"` 和 `
 | `TiltMode` | 倾斜的部分 | 对挂在根组件上的传感器 |
 | --- | --- | --- |
 | `None` | 都不倾斜，只偏航 | 始终水平 |
-| `Visual`（默认） | 只有 `VisualComponent`（默认指向 `VisualRoot`）倾斜，根组件和挂在它下面的东西保持水平 | 始终水平 |
+| `Visual`（默认） | 只有 `VisualComponent`（导航示例里指向 `VisualRoot`）倾斜，根组件和挂在它下面的东西保持水平 | 始终水平 |
 | `Body` | 根组件倾斜 | 看到真实多旋翼会有的姿态；IMU 只读到沿机体 Z 轴的比力 |
 
 测试用逐帧位姿差分的探针（算法同 IMU）验收：悬停时根组件上的比力是 +g（误差 0.02 m/s² 以内）。`Body` 模式下以 4 m/s² 的上限加速时，沿机体 X、Y 轴的读数不超过 0.15 m/s²，机头低于水平 5° 以上；`Visual` 模式下根组件保持水平，`VisualRoot` 低头超过 5°。
@@ -255,7 +305,7 @@ kT、kQ 是转子的 `ThrustCoefficient` 和 `TorqueCoefficient`，k1、k2、k_a
 
 由这些值得到：最大总推力 4 × 5.84e-6 × 1100² = 28.2656 N，约为重量的 1.92 倍。按 9.8 m/s² 重力，悬停需要约 0.52 的归一化指令（`Thrust` 映射），每个转子约 793 rad/s；`Get Hover Motor Command` 按工程的重力返回悬停指令。
 
-机架无效（质量或转动惯量不为正、没有转子、转子不产生推力）时，日志报错，并改用默认机架。`Make Quad X Airframe` 返回换了臂长和质量的默认机架：转动惯量按质量和臂长平方缩放，其余参数保持默认。
+`BP_UBotPhysicsDrone` 只把转子位置换成模型的电机轴，其余保持默认。机架无效（质量或转动惯量不为正、没有转子、转子不产生推力）时，日志报错，并改用默认机架。`Make Quad X Airframe` 返回换了臂长和质量的默认机架：转动惯量按质量和臂长平方缩放，其余参数保持默认。
 
 ### 控制模式
 
@@ -331,7 +381,7 @@ kT、kQ 是转子的 `ThrustCoefficient` 和 `TorqueCoefficient`，k1、k2、k_a
 
 ## 裸机架无人机
 
-`uBot Bare Airframe Drone` 与物理无人机用同一个动力学，只是 `bAcceptVelocityCommands` 和 `bAcceptAttitudeCommands` 默认关闭：只接受角速度和电机指令。速度和姿态指令返回 `false`，`Stop Motion` 仍然有效。
+`BP_UBotBareAirframeDrone` 与 `BP_UBotPhysicsDrone` 用同一个动力学，只是 `Movement` 上的 `bAcceptVelocityCommands` 和 `bAcceptAttitudeCommands` 关闭：只接受角速度和电机指令。速度和姿态指令返回 `false`，`Stop Motion` 仍然有效。`ManualInput` 的 `FlightMode` 在这个示例里是 `Rate`。
 
 第一条指令之前，以及指令丢失之后，它用内置飞控悬停。控制器有两种接法：
 
@@ -439,7 +489,7 @@ bool UMyRateController::SupportsControlMode_Implementation(EUBotFlightControlMod
 
 ### 从 C++ 和蓝图
 
-指令都经过 UBotCore 的接口发送，接收方是无人机的 `Movement` 组件：
+指令都经过 UBotCore 的接口发送，接收方是无人机的 `Movement` 组件。蓝图里用 `Find Multirotor Movement`（`uBot Multirotor Library`）或 `Get Component by Class` 取得它：
 
 | 接口 | 指令 | 导航 | 物理 | 裸机架 |
 | --- | --- | --- | --- | --- |
@@ -495,11 +545,11 @@ if (UObject* Target = UBot::Actuation::FindMotorCommandable(Drone))
 }
 ```
 
-蓝图里对 `Get Multirotor Movement` 的返回值调用同名的接口函数（类别 `uBot|Actuation`）。
+蓝图里对 `Find Multirotor Movement` 的返回值（或 `Movement` 组件）调用同名的接口函数（类别 `uBot|Actuation`）。
 
 ### 从 ROS 2 发送指令
 
-UBotROS 的三个指令组件把 ROS 2 消息换算后交给上面的接口，不含控制逻辑。把它们加到无人机蓝图上即可，它们用 `UBot::Actuation::Find*` 找到 `Movement` 组件，命名空间取自无人机上的 `uBot Identity`。
+UBotROS 的三个指令组件把 ROS 2 消息换算后交给上面的接口，不含控制逻辑。把它们加到（复制出来的）无人机蓝图上即可，它们用 `UBot::Actuation::Find*` 找到 `Movement` 组件，命名空间取自无人机上的 `uBot Identity`。
 
 | 组件 | 默认话题 | 消息 | 导航 | 物理 | 裸机架 |
 | --- | --- | --- | --- | --- | --- |
@@ -520,7 +570,7 @@ ros2 topic pub -r 50 /drone/cmd_attitude mavros_msgs/msg/AttitudeTarget "{type_m
 
 ## 手动飞行
 
-`uBot Multirotor Manual Input` 在每架无人机上都有。它只在本地玩家控制（Possess）这架无人机时工作，AI 控制器或远程控制器不触发它；`bTakeControlWhenPossessed` 关闭则不接管。
+`uBot Multirotor Manual Input` 是示例蓝图里的 `ManualInput` 组件，自己拼的无人机加上它即可。它只在本地玩家控制（Possess）这架无人机时工作，AI 控制器或远程控制器不触发它；`bTakeControlWhenPossessed` 关闭则不接管。
 
 控制期间它每帧发一条指令；控制结束时，`Velocity` 模式发 `Stop Motion`，其余模式发 `Release Attitude Command`，无人机刹停并悬停（物理无人机在后一种情况下按 `CommandLossAction` 处理）。同时有其他发送方（例如 ROS）时，最后到达的指令生效。
 
@@ -533,7 +583,7 @@ ros2 topic pub -r 50 /drone/cmd_attitude mavros_msgs/msg/AttitudeTarget "{type_m
 
 `FlightMode` 决定摇杆的含义，要和无人机能接受的指令匹配：
 
-| `FlightMode` | 摇杆含义 | 发出的指令 | 默认用它的无人机 |
+| `FlightMode` | 摇杆含义 | 发出的指令 | 示例里用它的无人机 |
 | --- | --- | --- | --- |
 | `Velocity` | 前后左右：航向系水平速度，满偏 `MaxHorizontalSpeedMetersPerSecond`（5 m/s）；上下：升降速度，满偏 `MaxVerticalSpeedMetersPerSecond`（2 m/s）；偏航：满偏 `MaxYawRateDegreesPerSecond`（90°/s） | 速度指令 | 导航、物理 |
 | `Angle` | 前后左右：倾斜，满偏 `MaxTiltDegrees`（30°）；偏航轴转动航向；上下：爬升率 | 姿态指令，不带推力，高度由无人机保持 | 无（物理无人机可选） |
@@ -545,7 +595,7 @@ ros2 topic pub -r 50 /drone/cmd_attitude mavros_msgs/msg/AttitudeTarget "{type_m
 
 自定义键位：设置 `CustomMappingContext`、`CustomMoveAction`（Axis3D：前、右、上）和 `CustomYawAction`（Axis1D，+ 向右偏航），映射上下文要映射这两个动作；`MappingPriority`（默认 1）是映射上下文的优先级。留空则用内置键位，它们在开始控制时按 `UBot::ManualFlight::GetDefaultBindings()` 在运行时创建，不需要资产。
 
-跟随相机 `Camera` 只在本地玩家控制时激活：弹簧臂长 120 cm，向下俯 15°，只跟随机体的偏航（不跟随俯仰和横滚），相机延迟速度 5，视场 80°。
+示例蓝图的 `Camera` 是挂在弹簧臂 `CameraBoom` 末端的普通相机：玩家控制无人机时，视图使用它。弹簧臂长 120 cm，俯仰 −15°，只继承机体的偏航（不继承俯仰和横滚，所以物理无人机倾斜、翻滚时视角不会跟着晃），相机延迟速度 5，相机视场 80°。
 
 测试验收：W 满偏给出 5 m/s 前进，W + D 的速度模长仍是 5 m/s；Left Ctrl 给出 −2 m/s，E 给出 π/2 rad/s 的偏航角速度。`Angle` 模式右摇杆满偏横滚 30°，偏航轴满偏 1 s 把航向转 90°。
 
@@ -642,8 +692,8 @@ ros2 topic pub -r 50 /drone/cmd_attitude mavros_msgs/msg/AttitudeTarget "{type_m
 | --- | --- |
 | 导航无人机以 1 m/s 撞墙 | 停在墙前 1 cm 以内，朝墙的速度不超过 0.06 m/s，触发一次 `OnImpact`，撞击速度与接近速度相差不超过 0.05 m/s，不坠毁 |
 | 以 2 m/s 撞向 45° 的墙 | 沿墙的滑动速度至少 0.7 m/s，向 −Y 移动超过 1 m |
-| 导航无人机以 1 m/s 下降 | 接触地面后 0.1 s 内落地，停在中心高 9 cm 处，旋翼停转；上升指令后 0.5 s 内起飞，2.5 s 后中心高度至少 1 m |
-| 物理无人机落地和起飞 | 同上；落地后中心高 9 cm（误差 0.3 cm），水平，旋翼低于 1 rad/s |
+| 导航无人机以 1 m/s 下降 | 接触地面后 0.1 s 内落地，停在中心高 6.7 cm 处，旋翼停转；上升指令后 0.5 s 内起飞，2.5 s 后中心高度至少 1 m |
+| 物理无人机落地和起飞 | 同上；落地后中心高 6.7 cm（误差 0.3 cm），水平，旋翼低于 1 rad/s |
 | 物理无人机以 6 m/s 撞墙 | 坠毁，`OnCrashed` 一次，撞击速度至少 3 m/s，之后拒绝指令，电机低于 1 rad/s，落到地面静止，`Reset Flight` 后落地并能再起飞 |
 | `Auto` 起步 | 离地 2 cm 时落地并贴地，离地 3 m 时悬停 |
 
@@ -660,7 +710,7 @@ uBotSensor 的传感器在 `TG_PostPhysics` 采样并对位姿做差分，所以
 
 ## 传感器
 
-uBotSensor 的传感器组件可以直接加到无人机的子类蓝图上，插件之间没有代码依赖。
+uBotSensor 的传感器组件可以直接加到复制出来的示例蓝图（或自己拼的无人机）上，插件之间没有代码依赖。
 
 - 挂在 `CollisionBox`（根）下的传感器随根组件运动；导航无人机的 `Visual` 模式下它保持水平。
 - 挂在 `VisualRoot` 下的传感器随机体模型一起倾斜；这只在导航无人机的 `Visual` 模式下与根组件不同。
@@ -687,8 +737,7 @@ uBotSensor 的传感器组件可以直接加到无人机的子类蓝图上，插
 
 | 对象 | 节点 |
 | --- | --- |
-| 无人机 | `Get Multirotor Movement`；导航：`Get Simple Flight`；物理、裸机架：`Get Dynamics` |
-| 飞行模型（`uBot Simple Flight`、`uBot Multirotor Dynamics`） | `Get Flight State`、`Is Landed`、`Get Multirotor State`、`Get Last Velocity Command`、`Get Physics Step Count`、`Reset Flight`、`Teleport Multirotor` |
+| 飞行模型（`uBot Simple Flight`、`uBot Multirotor Dynamics`） | `Get Flight State`、`Is Landed`、`Get Multirotor State`、`Get Last Velocity Command`、`Get Physics Step Count`、`Get Rotor Layout`、`Reset Flight`、`Teleport Multirotor` |
 | `uBot Simple Flight` | `Is Braking`、`Get Tilted Attitude` |
 | `uBot Multirotor Dynamics` | `Get Active Control Mode`、`Get Flight Setpoint`、`Set Flight Controller`、`Get Last Motor Commands`、`Get Hover Motor Command` |
 | `uBot Rotor` | `Set Rotor Speed`、`Get Rotor Speed` |
@@ -708,6 +757,8 @@ uBotSensor 的传感器组件可以直接加到无人机的子类蓝图上，插
 
 | 现象 | 原因和处理 |
 | --- | --- |
+| Content Browser 里看不到示例蓝图和地图 | 插件的 Content 默认不显示：打开 `Settings > Show Plugin Content` |
+| 更新插件后，对示例的修改不见了 | 直接改的是插件里的原资产。把示例复制到自己的工程再改，见“示例内容” |
 | 按键没有反应 | 玩家要控制（Possess）这架无人机，`bTakeControlWhenPossessed` 要开；默认玩家输入类要是 Enhanced Input；`FlightMode` 要是无人机能接受的（导航无人机只能用 `Velocity`），否则日志警告一次 |
 | 指令返回 `false` | 无人机已坠毁（先 `Reset Flight`）；这种指令被 `bAccept...Commands` 关闭（裸机架拒绝速度和姿态）；指令含 NaN；电机指令的个数不等于电机数；姿态四元数长度接近 0 |
 | 落地后不起飞 | 起飞需要上升指令，见“起飞”。不带推力或爬升率的姿态指令不会起飞 |
@@ -726,10 +777,11 @@ uBotSensor 的传感器组件可以直接加到无人机的子类蓝图上，插
 - `Dynamics.*`、`Controller.*`、`Math.ThrustAllocation`：10 s 悬停、速度阶跃、偏航角速度、有界刹车、电机全为 0 的自由落体、指令丢失（`Hover`、`Land`、`CutMotors`、超时）、各无人机接受的指令类型、姿态和角速度跟踪、自定义飞控（每步一次、`ControllerRateDivider`、个数错误）。推力分配：最大总推力，可行请求的往返误差，横滚、俯仰、偏航的符号，偏航饱和时先削减偏航。
 - `Collision.*`：撞墙停住、45° 墙面滑动、导航无人机和物理无人机的落地与起飞、坠毁与 `Reset Flight`、`InitialState`、外部移动与 `Teleport Multirotor`。
 - `Wind.*`：阵风的确定性和统计量，`uBot Wind` 与脚本风叠加，物理无人机的稳态风响应，导航无人机的风速阶跃。
-- `Input.*`：轴到指令的映射（`Velocity`、`Angle`、`Rate` 的符号和幅值，死区），默认键位不重复、每个轴有正负键和摇杆，映射上下文与键位一致，各无人机的默认 `FlightMode`。
+- `Input.*`：轴到指令的映射（`Velocity`、`Angle`、`Rate` 的符号和幅值，死区），默认键位不重复、每个轴有正负键和摇杆，映射上下文与键位一致。
 - `Base.PauseNoMotion`、`Determinism.*`：暂停期间没有物理步、恢复后不补跑，两次运行逐位相同，不同帧率下恒定指令的结果相同。
 - `Math.*`：固定步长时钟（每秒恰好 500 步，一帧跑 8 或 9 步，超限的步数被丢弃并计数）、姿态与推力方向、指令截断、四旋翼 X 布局。
-- `Pawn.*`、`Module.Loads`、`Backend.Selection`：组件构成和旋翼位置、旋向，包注册表里的层、能力键和依赖，后端的选择和回退。
+- `Examples.*`：示例蓝图的组件构成（旋翼在机架的位置上，`Movement` 的类型和设置），物理示例的悬停和速度阶跃，示例资产的内容依赖（只引用 `/UBotAerial`、`/Engine` 和 `/Script`）。
+- `Module.Loads`、`Backend.Selection`：包注册表里的层、能力键和依赖，后端的选择和回退。
 
 测试在手动 tick 的临时 Game 世界里运行，不需要 GPU，需要在启用了 UBotCore 和 UBotAerial 的工程里用带编辑器上下文的 `UnrealEditor` 运行。编辑器内：`Tools` 菜单打开 Session Frontend 的 Automation 标签页，过滤 `UBotAerial`。命令行：
 
@@ -743,4 +795,14 @@ uBotSensor 的传感器组件可以直接加到无人机的子类蓝图上，插
 
 当前版本 **0.1.0**（Beta，`IsBetaVersion`），尚未发布；仓库 <https://github.com/AstreoX/uBotAerial>。
 
-Copyright 2026 AstreoX。本项目以 [Apache License 2.0](LICENSE) 发布，可以自由使用、修改和再分发（包括商业用途），再分发时需保留 `LICENSE` 与 `NOTICE` 文件，并注明你修改过的文件。
+Copyright 2026 AstreoX。本项目的代码以 [Apache License 2.0](LICENSE) 发布，可以自由使用、修改和再分发（包括商业用途），再分发时需保留 `LICENSE` 与 `NOTICE` 文件，并注明你修改过的文件。无人机模型不在其内，见下一节。
+
+## 模型来源与授权
+
+`/UBotAerial/Models/` 里的无人机模型来自 Fab 上 HARTWEL JUNIOR KISAKA 的 [Animated Drone](https://www.fab.com/listings/c1f5f392-330a-418c-b0b0-e3c89639347f)，授权为 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。我们做了这些改动：
+
+- 转成静态网格：机身，加上居中在电机轴上的顺时针和逆时针桨叶；
+- 整体放大 2 倍，对应 450 mm 的机架；机头转向 +X；
+- 材质合并为一个，贴图缩到 1024，并转成金属度-粗糙度流程。
+
+Apache-2.0 只覆盖插件的代码，不覆盖这套模型。署名写在仓库的 `NOTICE` 文件里；再分发包含这些模型的内容时，需按 CC BY 4.0 保留署名并注明修改。
