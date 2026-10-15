@@ -6,7 +6,7 @@
 
 将仓库放到 UE 5.5 工程的 `Plugins/uBot/uBotAerial`，与 uBotCore 并列；工程需要能编译 C++。首次打开工程时，编辑器会提示编译模块，见[安装](https://astreox.github.io/uBotDocs/start/install/)。
 
-## 在 uBot 家族中的位置
+## 在 uBot 系列中的位置
 
 uBotAerial 是 **Capability**（能力）层，依赖 `UBotCore ^0.1.2`（姿态和电机指令接口从 0.1.2 起提供）和引擎插件 Enhanced Input。它不依赖 uBotSensor 和 uBotROS。
 

@@ -80,7 +80,7 @@ The manual is on the [docs site](https://astreox.github.io/uBotDocs/aerial/), wh
 | See the flight model details and acceptance criteria | [docs/FLIGHT-MODELS.md](docs/FLIGHT-MODELS.md) |
 | Build the plugin and run the tests | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 
-## uBot family
+## uBot series
 
 | Repository | What it is |
 | --- | --- |

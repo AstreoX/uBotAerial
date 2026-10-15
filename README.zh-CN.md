@@ -23,7 +23,7 @@
 
 ## 简介
 
-uBot Aerial 是 uBot 家族的多旋翼无人机插件，适用于 Unreal Engine 5.5。插件提供三个示例无人机蓝图，涵盖面向导航研究的简化飞行，以及带内置飞控的刚体动力学，并附演示地图。插件不依赖 ROS，通过 [uBotROS](https://github.com/AstreoX/uBotROS) 可从 ROS 2 控制无人机。
+uBot Aerial 是 uBot 系列的多旋翼无人机插件，适用于 Unreal Engine 5.5。插件提供三个示例无人机蓝图，涵盖面向导航研究的简化飞行，以及带内置飞控的刚体动力学，并附演示地图。插件不依赖 ROS，通过 [uBotROS](https://github.com/AstreoX/uBotROS) 可从 ROS 2 控制无人机。
 
 - **简化飞行：** 速度指令按一阶响应跟踪，带加速度上限。
 - **刚体动力学：** 转子推力、电机滞后、阻力和风；接收速度、姿态、角速度和单电机指令。
@@ -80,7 +80,7 @@ git clone --branch v0.1.0 https://github.com/AstreoX/uBotAerial.git <Project>/Pl
 | 查看飞行模型细节与验收指标 | [docs/FLIGHT-MODELS.md](docs/FLIGHT-MODELS.md) |
 | 构建插件并运行测试 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 
-## uBot 家族
+## uBot 系列
 
 | 仓库 | 说明 |
 | --- | --- |
