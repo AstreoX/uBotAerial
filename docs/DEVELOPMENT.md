@@ -1,10 +1,10 @@
 # 开发与测试
 
-> 本文取自改版前的 README，正文原样保留。正文里“见……”这类引用指向当时 README 的章节，现在对应[文档站](https://astreox.github.io/uBotDocs/aerial/)上的页面。
+> 本文取自原 README，正文未改动。正文中“见……”的引用对应[文档站](https://astreox.github.io/uBotDocs/aerial/)上的页面。
 
 ## 构建
 
-这个仓库是插件的源码：把它放到 UE 5.5 工程的 `Plugins/uBot/uBotAerial`，旁边装好 uBotCore，工程需要能编译 C++。首次打开工程时，编辑器会提示编译模块（见 [安装](https://astreox.github.io/uBotDocs/start/install/)）。
+将仓库放到 UE 5.5 工程的 `Plugins/uBot/uBotAerial`，与 uBotCore 并列；工程需要能编译 C++。首次打开工程时，编辑器会提示编译模块，见[安装](https://astreox.github.io/uBotDocs/start/install/)。
 
 ## 在 uBot 家族中的位置
 

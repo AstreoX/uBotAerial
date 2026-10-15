@@ -1,6 +1,6 @@
 # 飞行模型细节与验收指标
 
-> 本文取自改版前的 README，正文原样保留。正文里“见……”这类引用指向当时 README 的章节，现在对应[文档站](https://astreox.github.io/uBotDocs/aerial/)上的页面。
+> 本文取自原 README，正文未改动。正文中“见……”的引用对应[文档站](https://astreox.github.io/uBotDocs/aerial/)上的页面。
 
 ## 导航无人机的简化飞行模型
 

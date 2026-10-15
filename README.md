@@ -23,15 +23,15 @@
 
 ## What it is
 
-uBot Aerial adds multirotor drones to Unreal Engine 5.5 as a uBot plugin. It ships three example drone Blueprints, from simplified flight for navigation research to rigid-body dynamics with a built-in flight controller, and a demo map to fly them in. It has no ROS dependency; to command a drone from ROS 2, add [uBotROS](https://github.com/AstreoX/uBotROS).
+uBot Aerial adds multirotor drones to Unreal Engine 5.5 as a uBot plugin. It includes three example drone Blueprints, from simplified flight for navigation research to rigid-body dynamics with a built-in flight controller, and a demo map. The plugin has no ROS dependency; drones are commanded from ROS 2 through [uBotROS](https://github.com/AstreoX/uBotROS).
 
 - **Simplified flight:** velocity commands tracked with a first-order response and acceleration limits.
-- **Rigid-body dynamics:** rotor thrust, motor lag, drag and wind, flown from velocity, attitude, body-rate or per-motor commands.
-- **Your own controller:** subclass `uBot Flight Controller` in Blueprint or C++ to replace the built-in one.
-- **Manual flight:** keyboard or gamepad, in Velocity, Angle or Rate mode.
-- **Wind and collision:** constant wind with seeded gusts; drones slide along walls and the ground like any other surface.
+- **Rigid-body dynamics:** rotor thrust, motor lag, drag and wind; velocity, attitude, body-rate and per-motor commands.
+- **Custom flight controllers:** subclass `uBot Flight Controller` in Blueprint or C++ to replace the built-in one.
+- **Manual flight:** keyboard or gamepad in Velocity, Angle or Rate mode.
+- **Wind and collision:** constant wind with seeded gusts; drones slide along walls and the ground.
 
-| Example drone | For | Commands it takes |
+| Example drone | Use | Commands |
 | --- | --- | --- |
 | `BP_UBotNavigationDrone` | Navigation, planning, perception | Velocity, yaw rate |
 | `BP_UBotPhysicsDrone` | Realistic dynamics with the built-in controller | Velocity, attitude, body rate, single motor |
@@ -39,32 +39,32 @@ uBot Aerial adds multirotor drones to Unreal Engine 5.5 as a uBot plugin. It shi
 
 ## Install
 
-**uBot Manager (recommended).** [uBot Manager](https://github.com/AstreoX/uBotManager) is a Windows desktop app that installs uBot packages together with their dependencies.
+**uBot Manager (recommended).** [uBot Manager](https://github.com/AstreoX/uBotManager) is a Windows desktop app that installs uBot packages and their dependencies.
 
-1. Install it from the [uBot Manager releases](https://github.com/AstreoX/uBotManager/releases) and close the Unreal Editor.
-2. In uBot Manager, open your `.uproject`, select **UBotAerial** in the Package view, click **Install**, then **Apply…** and confirm the plan.
+1. Download and run the installer from the [uBot Manager releases](https://github.com/AstreoX/uBotManager/releases).
+2. Open your `.uproject` in uBot Manager, select **UBotAerial** in the Package view, then click **Install** and **Apply…**.
 3. Open the project in UE 5.5. `Window > uBot` lists UBotAerial under Loaded Packages.
 
-**Manual.** Install [uBotCore](https://github.com/AstreoX/uBotCore) first, then clone this repository next to it, enable **uBot Aerial** in `Edit > Plugins` and restart the editor:
+**Manual.** Install [uBotCore](https://github.com/AstreoX/uBotCore) first, clone this repository next to it, enable **uBot Aerial** in `Edit > Plugins` and restart the editor:
 
 ```powershell
 git clone --branch v0.1.0 https://github.com/AstreoX/uBotAerial.git <Project>/Plugins/uBot/uBotAerial
 ```
 
-Requirements: Unreal Engine 5.5, uBotCore `^0.1.2`, the Enhanced Input engine plugin, and a C++ toolchain (Visual Studio 2022) when building from source. The plugin is in beta.
+Requirements: Unreal Engine 5.5, uBotCore `^0.1.2`, Enhanced Input (also as the project's `Default Player Input Class`), and Visual Studio 2022 for source builds.
 
 ## Quick start
 
 Fly the physics drone in the demo map:
 
-1. In the Content Browser, turn on `Settings > Show Plugin Content`.
-2. Open `/UBotAerial/Maps/L_UBotAerialDemo` and press Play. The physics drone is controlled by Player 0.
-3. Fly with the keyboard: Space up, Left Ctrl down, W / A / S / D move, E / Q yaw. On a gamepad, the right stick moves and the left stick climbs and yaws. The project's `Default Player Input Class` must be an Enhanced Input class.
-4. To fly another drone, set its `Auto Possess Player` to Player 0 and set the first one back to `Disabled`.
+1. In the Content Browser, enable `Settings > Show Plugin Content`.
+2. Open `/UBotAerial/Maps/L_UBotAerialDemo` and click Play. The physics drone is controlled by Player 0.
+3. Keyboard: Space up, Left Ctrl down, W / A / S / D move, E / Q yaw. Gamepad: right stick moves, left stick climbs and yaws.
+4. To switch drones, set `Auto Possess Player` to Player 0 on the other one and back to `Disabled` on the first.
 
 ## Documentation
 
-The manual is on the [docs site](https://astreox.github.io/uBotDocs/aerial/), currently in Chinese. It also covers collision, the FAQ and the API reference.
+The manual is on the [docs site](https://astreox.github.io/uBotDocs/aerial/), which also covers collision, the FAQ and the API reference.
 
 | I want to ... | Go to |
 | --- | --- |
@@ -93,9 +93,9 @@ The manual is on the [docs site](https://astreox.github.io/uBotDocs/aerial/), cu
 
 ## Development
 
-- Build: the repository is the plugin source. Place it in a UE 5.5 C++ project under `Plugins/uBot/uBotAerial`, next to uBotCore, and build the project.
-- Test: the tests are Unreal automation tests named `UBotAerial.*`. Run them from the editor's Session Frontend (Automation tab) or from the command line, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
-- Report bugs and ask questions in [Issues](https://github.com/AstreoX/uBotAerial/issues).
+- Build: place the repository under `Plugins/uBot/uBotAerial` in a UE 5.5 C++ project, next to uBotCore, and build the project.
+- Test: Unreal automation tests named `UBotAerial.*`, run from the Session Frontend (Automation tab) or the command line; see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+- Issues: report bugs and questions in [Issues](https://github.com/AstreoX/uBotAerial/issues).
 
 ## License
 
@@ -103,4 +103,4 @@ Copyright 2026 AstreoX. The code is licensed under [Apache-2.0](LICENSE); see al
 
 The drone model in `Content/Models` (`SM_UBotDrone_*`, `M_UBotDrone`, `T_UBotDrone_*`) is based on "Animated Drone" by HARTWEL JUNIOR KISAKA, from [Fab](https://www.fab.com/listings/c1f5f392-330a-418c-b0b0-e3c89639347f), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The Apache License does not apply to it.
 
-Changes made: converted from a skinned glTF model to static meshes (one body mesh and clockwise and counter-clockwise propeller meshes centered on their hubs), scaled by 2 (to a 450 mm airframe), re-oriented so the nose faces +X, all materials merged into one, textures resized to 1024x1024 and converted from specular-glossiness to metallic-roughness, normal map green channel flipped. The animations are not included. Redistributing the model requires keeping this attribution and stating your own changes.
+Changes made: converted from a skinned glTF model to static meshes (one body mesh and clockwise and counter-clockwise propeller meshes centered on their hubs), scaled by 2, re-oriented so the nose faces +X, all materials merged into one, textures resized to 1024x1024 and converted from specular-glossiness to metallic-roughness, normal map green channel flipped. The animations are not included.
