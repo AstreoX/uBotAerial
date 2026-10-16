@@ -1,3 +1,4 @@
+
 # 开发与测试
 
 > 本文取自原 README，正文未改动。正文中“见……”的引用对应[文档站](https://astreox.github.io/uBotDocs/aerial/)上的页面。
@@ -61,7 +62,8 @@ uBotAerial 是 **Capability**（能力）层，依赖 `UBotCore ^0.1.2`（姿态
 - `Wind.*`：阵风的确定性和统计量，`uBot Wind` 与脚本风叠加，物理无人机的稳态风响应，导航无人机的风速阶跃。
 - `Input.*`：轴到指令的映射（`Velocity`、`Angle`、`Rate` 的符号和幅值，死区），默认键位不重复、每个轴有正负键和摇杆，映射上下文与键位一致。
 - `Base.PauseNoMotion`、`Determinism.*`：暂停期间没有物理步、恢复后不补跑，两次运行逐位相同，不同帧率下恒定指令的结果相同。
-- `Math.*`：固定步长时钟（每秒恰好 500 步，一帧跑 8 或 9 步，超限的步数被丢弃并计数）、姿态与推力方向、指令截断、四旋翼 X 布局。
+- `BodyState.*`：刚体状态源只提供根组件（BeginPlay 之前就成立，BeginPlay 之后才有状态）；状态就是积分器的状态，而不是外推后的呈现位姿，角速度在世界系且与姿态的转动率一致；角加速度等于单个物理步里世界角速度的变化，`Reset Flight` 和传送后为零。
+- `Math.*`：固定步长时钟（每秒恰好 500 步，一帧跑 8 或 9 步，超限的步数被丢弃并计数）、姿态与推力方向、指令截断、四旋翼 X 布局；`Math.BodyRateBetweenSmallAngles`：两个姿态之间的机体系角速度，转角小到每步不足 2e-4 rad（500 Hz 下低于 0.1 rad/s）时转轴也是对的。
 - `Examples.*`：示例蓝图的组件构成（旋翼在机架的位置上，`Movement` 的类型和设置），物理示例的悬停和速度阶跃，示例资产的内容依赖（只引用 `/UBotAerial`、`/Engine` 和 `/Script`）。
 - `Module.Loads`、`Backend.Selection`：包注册表里的层、能力键和依赖，后端的选择和回退。
 

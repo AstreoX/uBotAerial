@@ -144,10 +144,13 @@ namespace UBot::Multirotor
         {
             Delta = FQuat(-Delta.X, -Delta.Y, -Delta.Z, -Delta.W);
         }
-        FVector Axis;
-        double Angle = 0.0;
-        Delta.ToAxisAndAngle(Axis, Angle);
-        return Axis * (Angle / DeltaSeconds);
+        // The rotation vector is the vector part times angle / sin(angle / 2), with angle = 2 atan2(|v|, W). FQuat::ToAxisAndAngle
+        // is not used: it gives the X axis for any vector part below 1e-4 (turns of less than 2e-4 rad, e.g. rates under 0.1 rad/s at
+        // 500 Hz) and acos loses all precision for angles close to zero.
+        const FVector Vector(Delta.X, Delta.Y, Delta.Z);
+        const double VectorSize = Vector.Size();
+        const double Scale = VectorSize > UE_DOUBLE_SMALL_NUMBER ? 2.0 * FMath::Atan2(VectorSize, Delta.W) / VectorSize : 2.0;
+        return Vector * (Scale / DeltaSeconds);
     }
 
     FVector SpecificForce(const FQuat& Orientation, const FVector& AccelerationWorld, const FVector& Gravity)

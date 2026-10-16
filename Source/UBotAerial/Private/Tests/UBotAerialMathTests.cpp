@@ -97,6 +97,41 @@ bool FUBotAerialMathAttitudeTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialMathBodyRateSmallAnglesTest, "UBotAerial.Math.BodyRateBetweenSmallAngles", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FUBotAerialMathBodyRateSmallAnglesTest::RunTest(const FString& Parameters)
+{
+    using namespace UBot::Multirotor;
+
+    // A turn of less than 2e-4 rad has a quaternion vector part below 1e-4, where FQuat::ToAxisAndAngle falls back to the
+    // X axis: the rate came out about X whatever the axis of the turn. Rates from far below that to far above it, about
+    // axes that are not X, in the frame of a tilted attitude, must come out about their own axis. The increment is built
+    // as IntegrateBodyRate builds it, so the expected rate is exact up to round-off (about 1e-16 / angle).
+    const FQuat From = FQuat(FVector(1.0, 2.0, 3.0).GetSafeNormal(), 0.7);
+    const FVector Axes[] = { FVector::ZAxisVector, FVector::YAxisVector, FVector(0.0, 1.0, 1.0).GetSafeNormal(), FVector(-1.0, 2.0, -0.5).GetSafeNormal() };
+    const double StepSeconds = 0.002;
+    for (const FVector& Axis : Axes)
+    {
+        for (const double Rate : { 1.0e-4, 1.0e-3, 0.01, 0.05, 0.0999, 0.1001, 0.5, 3.0 })
+        {
+            const FVector BodyRate = Axis * Rate;
+            const FQuat To = IntegrateBodyRate(From, BodyRate, StepSeconds);
+            const FVector Recovered = BodyRateBetween(From, To, StepSeconds);
+            // Relative to the rate: at the smallest rate the vector part of the increment is Rate * 0.002 / 2 = 1e-7 and the
+            // round-off of the quaternion products is a few 1e-16 of it, so about 4e-9 relative; 1e-6 leaves a margin of
+            // 250 and is still far below the old error (the full rate, or more).
+            TestTrue(FString::Printf(TEXT("Rate %g about %s is recovered (got %s)"), Rate, *Axis.ToString(), *Recovered.ToString()), (Recovered - BodyRate).Size() <= 1.0e-6 * Rate);
+        }
+    }
+
+    // No rotation at all is no rate, and the shortest way round is taken for a quaternion of the opposite sign.
+    TestTrue(TEXT("No rotation is no rate"), BodyRateBetween(From, From, StepSeconds).IsNearlyZero(1.0e-12));
+    const FQuat Turned = IntegrateBodyRate(From, FVector(0.0, 0.0, 0.3), StepSeconds);
+    const FQuat Opposite(-Turned.X, -Turned.Y, -Turned.Z, -Turned.W);
+    TestTrue(TEXT("The sign of the quaternion does not matter"), BodyRateBetween(From, Opposite, StepSeconds).Equals(FVector(0.0, 0.0, 0.3), 1.0e-9));
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialMathVelocityCommandTest, "UBotAerial.Math.ClampVelocityCommand", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FUBotAerialMathVelocityCommandTest::RunTest(const FString& Parameters)

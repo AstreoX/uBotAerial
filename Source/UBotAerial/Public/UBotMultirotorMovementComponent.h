@@ -5,6 +5,7 @@
 #include "GameFramework/MovementComponent.h"
 #include "UBotActuatorInterface.h"
 #include "UBotAerialTypes.h"
+#include "UBotBodyState.h"
 #include "UBotMultirotorMath.h"
 #include "UBotMultirotorMovementComponent.generated.h"
 
@@ -22,9 +23,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FUBotMultirotorImpactEvent, const F
  * current sim time every frame. Accepts velocity commands
  * (IUBotVelocityCommandable) in the heading frame: X forward and Y right along the current heading,
  * Z up; only the Z angular velocity (yaw rate) is used.
+ *
+ * Implements IUBotBodyStateSource for its updated component: the state is the integrator's at the latest
+ * physics step (the component shows it extrapolated to the current sim time), so sensors can read it, and
+ * no physics backend can bind the same body.
  */
 UCLASS(Abstract, ClassGroup = (uBot), meta = (DisplayName = "uBot Multirotor Movement"))
-class UBOTAERIAL_API UUBotMultirotorMovementComponent : public UMovementComponent, public IUBotActuator, public IUBotVelocityCommandable
+class UBOTAERIAL_API UUBotMultirotorMovementComponent : public UMovementComponent, public IUBotActuator, public IUBotVelocityCommandable, public IUBotBodyStateSource
 {
     GENERATED_BODY()
 
@@ -92,6 +97,10 @@ public:
     // IUBotVelocityCommandable
     virtual bool ApplyVelocityCommand_Implementation(const FUBotVelocityCommand& Command) override;
     virtual void StopMotion_Implementation() override;
+
+    // IUBotBodyStateSource
+    virtual bool ProvidesBodyState(const USceneComponent* Body) const override;
+    virtual bool GetBodyState(const USceneComponent* Body, FUBotBodyState& OutState) const override;
 
     // UActorComponent
     virtual void BeginPlay() override;
@@ -165,6 +174,8 @@ protected:
     /** Body frame, rad/s. */
     FVector AngularVelocity = FVector::ZeroVector;
     FVector LinearAcceleration = FVector::ZeroVector;
+    /** World frame, rad/s²: the change of the world angular velocity over the latest physics step. */
+    FVector AngularAcceleration = FVector::ZeroVector;
     FUBotVelocityCommand LastVelocityCommand;
     /** The latest step touched something. */
     bool bContactThisStep = false;

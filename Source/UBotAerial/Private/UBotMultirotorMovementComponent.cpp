@@ -65,6 +65,7 @@ void UUBotMultirotorMovementComponent::StartFlight()
     LinearVelocity = FVector::ZeroVector;
     AngularVelocity = FVector::ZeroVector;
     LinearAcceleration = FVector::ZeroVector;
+    AngularAcceleration = FVector::ZeroVector;
     LastVelocityCommand = FUBotVelocityCommand();
     bContactThisStep = false;
     bContactLastStep = false;
@@ -143,11 +144,13 @@ void UUBotMultirotorMovementComponent::TickComponent(float DeltaTime, ELevelTick
         for (int32 Step = 0; Step < Steps; ++Step)
         {
             const FVector VelocityBefore = LinearVelocity;
+            const FVector WorldAngularVelocityBefore = Orientation.RotateVector(AngularVelocity);
             bContactThisStep = false;
             SimulateStep(StepSeconds);
             PhysicsClock.AdvanceStep();
             ++StepCount;
             LinearAcceleration = (LinearVelocity - VelocityBefore) / StepSeconds;
+            AngularAcceleration = (Orientation.RotateVector(AngularVelocity) - WorldAngularVelocityBefore) / StepSeconds;
             bContactLastStep = bContactThisStep;
         }
     }
@@ -294,6 +297,35 @@ FUBotMultirotorState UUBotMultirotorMovementComponent::GetMultirotorState() cons
     return State;
 }
 
+bool UUBotMultirotorMovementComponent::ProvidesBodyState(const USceneComponent* Body) const
+{
+    // The claim holds from registration on (the updated component is set then), before the flight starts.
+    return Body != nullptr && Body == UpdatedComponent.Get();
+}
+
+bool UUBotMultirotorMovementComponent::GetBodyState(const USceneComponent* Body, FUBotBodyState& OutState) const
+{
+    if (!ProvidesBodyState(Body) || !bFlightStarted)
+    {
+        return false;
+    }
+    // The integrator's state at the latest physics step, not the pose presented for the current sim time.
+    FUBotBodyState State;
+    State.PositionMeters = PositionMeters;
+    State.Orientation = Orientation;
+    State.LinearVelocityMetersPerSecond = LinearVelocity;
+    // AngularVelocity is in the body frame; the state is in the world frame.
+    State.AngularVelocityRadiansPerSecond = Orientation.RotateVector(AngularVelocity);
+    State.LinearAccelerationMetersPerSecondSquared = LinearAcceleration;
+    State.AngularAccelerationRadiansPerSecondSquared = AngularAcceleration;
+    State.bHasLinearAcceleration = true;
+    State.bHasAngularAcceleration = true;
+    State.TimestampSeconds = PhysicsClock.GetTimeSeconds();
+    State.Source = UBot::Aerial::PackageName;
+    OutState = State;
+    return true;
+}
+
 void UUBotMultirotorMovementComponent::ResetFlight()
 {
     if (!UpdatedComponent)
@@ -318,6 +350,7 @@ void UUBotMultirotorMovementComponent::TeleportMultirotor(FVector NewLocation, F
         LinearVelocity = FVector::ZeroVector;
         AngularVelocity = FVector::ZeroVector;
         LinearAcceleration = FVector::ZeroVector;
+        AngularAcceleration = FVector::ZeroVector;
         ResetModel();
     }
     else
