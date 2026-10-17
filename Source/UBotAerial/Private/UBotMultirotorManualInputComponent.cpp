@@ -235,7 +235,8 @@ void UUBotMultirotorManualInputComponent::ReleaseControl()
             }
         }
     }
-    // The drone keeps flying on its own: brake and hover.
+    // The drone keeps flying on its own. Velocity mode stops the motion (brake and hover); Angle and Rate
+    // mode release the attitude command, and the drone's Command Loss Action decides what follows.
     const AActor* Owner = GetOwner();
     if (FlightMode == EUBotManualFlightMode::Velocity)
     {

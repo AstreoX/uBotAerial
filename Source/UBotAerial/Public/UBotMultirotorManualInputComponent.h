@@ -57,7 +57,9 @@ namespace UBot::ManualFlight
  * Flies the owning multirotor with keyboard or gamepad while a local player controls (possesses) it.
  * The input actions and the mapping context are created at run time (Enhanced Input), so no assets
  * are needed; set your own to change the keys. While it controls the drone it sends a command every
- * frame; when control ends the drone brakes and hovers.
+ * frame. When control ends, it depends on the Flight Mode: in Velocity mode the drone brakes and hovers;
+ * in Angle and Rate mode the attitude command is released, and the drone's Command Loss Action decides
+ * what happens next (Hover by default).
  */
 UCLASS(ClassGroup = (uBot), meta = (BlueprintSpawnableComponent, DisplayName = "uBot Multirotor Manual Input"))
 class UBOTAERIAL_API UUBotMultirotorManualInputComponent : public UActorComponent
