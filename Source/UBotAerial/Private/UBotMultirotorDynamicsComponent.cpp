@@ -223,6 +223,10 @@ bool UUBotMultirotorDynamicsComponent::ApplyAttitudeCommand_Implementation(const
     CommandedVerticalVelocity = FMath::Clamp(Command.VerticalVelocityMetersPerSecond,
         -static_cast<double>(VelocityLimits.MaxDescentSpeedMetersPerSecond), static_cast<double>(VelocityLimits.MaxClimbSpeedMetersPerSecond));
     NoteCommand();
+    if (!HasFlightStarted())
+    {
+        RunAfterFlightStart([this, Command] { ApplyAttitudeCommand_Implementation(Command); });
+    }
     return true;
 }
 
@@ -240,6 +244,10 @@ bool UUBotMultirotorDynamicsComponent::ApplyBodyRateCommand_Implementation(const
     CommandedVerticalVelocity = FMath::Clamp(Command.VerticalVelocityMetersPerSecond,
         -static_cast<double>(VelocityLimits.MaxDescentSpeedMetersPerSecond), static_cast<double>(VelocityLimits.MaxClimbSpeedMetersPerSecond));
     NoteCommand();
+    if (!HasFlightStarted())
+    {
+        RunAfterFlightStart([this, Command] { ApplyBodyRateCommand_Implementation(Command); });
+    }
     return true;
 }
 
@@ -248,6 +256,10 @@ void UUBotMultirotorDynamicsComponent::ReleaseAttitudeCommand_Implementation()
     if (Setpoint.Mode == EUBotFlightControlMode::Attitude || Setpoint.Mode == EUBotFlightControlMode::BodyRate)
     {
         ApplyCommandLoss();
+        if (!HasFlightStarted())
+        {
+            DropPendingStartCommand();
+        }
     }
 }
 
@@ -274,6 +286,10 @@ bool UUBotMultirotorDynamicsComponent::ApplyMotorCommand_Implementation(const FU
     }
     EnterSetpointMode(EUBotFlightControlMode::Motor);
     NoteCommand();
+    if (!HasFlightStarted())
+    {
+        RunAfterFlightStart([this, Command] { ApplyMotorCommand_Implementation(Command); });
+    }
     return true;
 }
 
@@ -287,6 +303,10 @@ void UUBotMultirotorDynamicsComponent::ReleaseMotorCommand_Implementation()
     if (Setpoint.Mode == EUBotFlightControlMode::Motor)
     {
         ApplyCommandLoss();
+        if (!HasFlightStarted())
+        {
+            DropPendingStartCommand();
+        }
     }
 }
 

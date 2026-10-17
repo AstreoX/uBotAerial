@@ -85,6 +85,13 @@ void UUBotMultirotorMovementComponent::StartFlight()
     bFlightStarted = true;
     bFirstFrame = true;
     ResetModel();
+    // A command accepted before the flight started applies on top of the fresh model.
+    TFunction<void()> Pending = MoveTemp(PendingStartCommand);
+    PendingStartCommand = nullptr;
+    if (Pending)
+    {
+        Pending();
+    }
 
     UpdatedComponent->SetWorldLocationAndRotation(PositionMeters * 100.0, Orientation, false, nullptr, ETeleportType::TeleportPhysics);
     LastPresentedTransform = UpdatedComponent->GetComponentTransform();
@@ -332,7 +339,13 @@ void UUBotMultirotorMovementComponent::ResetFlight()
     {
         return;
     }
+    PendingStartCommand = nullptr;
     StartFlight();
+}
+
+void UUBotMultirotorMovementComponent::RunAfterFlightStart(TFunction<void()> Command)
+{
+    PendingStartCommand = MoveTemp(Command);
 }
 
 void UUBotMultirotorMovementComponent::TeleportMultirotor(FVector NewLocation, FRotator NewRotation, bool bStopMotion)
@@ -347,6 +360,7 @@ void UUBotMultirotorMovementComponent::TeleportMultirotor(FVector NewLocation, F
     Orientation = LastPresentedTransform.GetRotation().GetNormalized();
     if (bStopMotion)
     {
+        PendingStartCommand = nullptr;
         LinearVelocity = FVector::ZeroVector;
         AngularVelocity = FVector::ZeroVector;
         LinearAcceleration = FVector::ZeroVector;
@@ -390,11 +404,19 @@ bool UUBotMultirotorMovementComponent::ApplyVelocityCommand_Implementation(const
     LastVelocityCommand = Command;
     LastVelocityCommand.LinearVelocityMetersPerSecond = Linear;
     LastVelocityCommand.AngularVelocityRadiansPerSecond = FVector(0.0, 0.0, YawRate);
+    if (!bFlightStarted)
+    {
+        RunAfterFlightStart([this, Command] { ApplyVelocityCommand_Implementation(Command); });
+    }
     return true;
 }
 
 void UUBotMultirotorMovementComponent::StopMotion_Implementation()
 {
+    if (!bFlightStarted)
+    {
+        DropPendingStartCommand();
+    }
     LastVelocityCommand.LinearVelocityMetersPerSecond = FVector::ZeroVector;
     LastVelocityCommand.AngularVelocityRadiansPerSecond = FVector::ZeroVector;
     HandleStopMotion();

@@ -125,6 +125,20 @@ protected:
     /** Resets the model of the subclass to the current base state: at rest, hovering. */
     virtual void ResetModel() {}
 
+    /** True once the flight has started: begin play ran (or the first tick, when there was no body at begin play). */
+    bool HasFlightStarted() const { return bFlightStarted; }
+
+    /**
+     * Keeps Command to run right after the model was reset at the start of the flight, for a command accepted
+     * before that (another actor's begin play can come first): the reset would otherwise discard a command
+     * that was reported as accepted. Only the latest call is kept. Reset Flight and a teleport that stops
+     * motion drop it, like they drop an active command.
+     */
+    void RunAfterFlightStart(TFunction<void()> Command);
+
+    /** Drops the command kept by RunAfterFlightStart: a stop or a release before the flight started leaves nothing to run. */
+    void DropPendingStartCommand() { PendingStartCommand = nullptr; }
+
     /** Advances the model by one physics step. Implementations call MoveBody and ApplyContacts. */
     virtual void SimulateStep(double StepSeconds) PURE_VIRTUAL(UUBotMultirotorMovementComponent::SimulateStep, );
 
@@ -202,6 +216,8 @@ private:
     FVector Gravity = FVector(0.0, 0.0, -9.80665);
     int64 StepCount = 0;
     bool bFlightStarted = false;
+    /** Accepted before the flight started; runs once after the model was reset at the start. */
+    TFunction<void()> PendingStartCommand;
     bool bFreeSpaceThisFrame = false;
     bool bContactLastStep = false;
     bool bDroppedStepsWarned = false;
