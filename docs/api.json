@@ -711,7 +711,7 @@
       "module": "UBotAerial",
       "header": "Source/UBotAerial/Public/UBotMultirotorManualInputComponent.h",
       "category": "uBot",
-      "tooltip": "Flies the owning multirotor with keyboard or gamepad while a local player controls (possesses) it.\nThe input actions and the mapping context are created at run time (Enhanced Input), so no assets\nare needed; set your own to change the keys. While it controls the drone it sends a command every\nframe; when control ends the drone brakes and hovers.",
+      "tooltip": "Flies the owning multirotor with keyboard or gamepad while a local player controls (possesses) it.\nThe input actions and the mapping context are created at run time (Enhanced Input), so no assets\nare needed; set your own to change the keys. While it controls the drone it sends a command every\nframe. When control ends, it depends on the Flight Mode: in Velocity mode the drone brakes and hovers;\nin Angle and Rate mode the attitude command is released, and the drone's Command Loss Action decides\nwhat happens next (Hover by default).",
       "flags": {
         "abstract": false,
         "blueprintType": true,
