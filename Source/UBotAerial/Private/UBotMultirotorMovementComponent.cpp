@@ -8,7 +8,7 @@
 #include "UBotIdentityComponent.h"
 #include "UBotMultirotorCollision.h"
 #include "UBotRotorComponent.h"
-#include "UBotWindSubsystem.h"
+#include "UBotWindQuerySubsystem.h"
 
 namespace
 {
@@ -113,7 +113,7 @@ void UUBotMultirotorMovementComponent::TickComponent(float DeltaTime, ELevelTick
     }
 
     Gravity = FVector(0.0, 0.0, World->GetGravityZ() / 100.0);
-    WindSubsystem = World->GetSubsystem<UUBotWindSubsystem>();
+    WindQuery = World->GetSubsystem<UUBotWindQuerySubsystem>();
     const double Now = UBot::Clock::GetSimTimeSeconds(this);
     if (!bFlightStarted)
     {
@@ -286,7 +286,7 @@ void UUBotMultirotorMovementComponent::GetRotorLayout(TArray<FVector>& Positions
 
 FVector UUBotMultirotorMovementComponent::SampleWind() const
 {
-    const UUBotWindSubsystem* Wind = WindSubsystem.Get();
+    const UUBotWindQuerySubsystem* Wind = WindQuery.Get();
     return Wind ? Wind->GetWindVelocity(PositionMeters * 100.0, GetPhysicsTimeSeconds()) : FVector::ZeroVector;
 }
 

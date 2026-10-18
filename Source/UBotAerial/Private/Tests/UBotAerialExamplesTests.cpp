@@ -247,6 +247,8 @@ bool FUBotAerialExamplesDependenciesTest::RunTest(const FString& Parameters)
             const FString Path = Dependency.ToString();
             const bool bAllowed = Path.StartsWith(TEXT("/UBotAerial/")) || Path.StartsWith(TEXT("/Engine/")) || Path.StartsWith(TEXT("/Script/"));
             TestTrue(FString::Printf(TEXT("%s depends only on plugin, engine and script packages (%s)"), *Package.ToString(), *Path), bAllowed);
+            TestFalse(FString::Printf(TEXT("%s works without the optional environment plugin (%s)"), *Package.ToString(), *Path),
+                Path.StartsWith(TEXT("/Script/UBotEnvironment")) || Path.StartsWith(TEXT("/UBotEnvironment/")));
         }
     }
     TestTrue(TEXT("Demo map exists"), FPackageName::DoesPackageExist(UBotAerialExamplesTests::DemoMapPackage));

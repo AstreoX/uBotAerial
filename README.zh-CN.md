@@ -29,13 +29,21 @@ uBot Aerial 是 uBot 系列的多旋翼无人机插件，适用于 Unreal Engine
 - **刚体动力学：** 转子推力、电机滞后、阻力和风；接收速度、姿态、角速度和单电机指令。
 - **自定义飞控：** 在蓝图或 C++ 中继承 `uBot Flight Controller`，替换内置飞控。
 - **手动飞行：** 键盘或手柄，Velocity、Angle、Rate 三种模式。
-- **风与碰撞：** 恒定风加带种子的阵风；无人机沿墙和地面滑动。
+- **风响应与碰撞：** 读取可选的通用风场；无人机沿墙和地面滑动。
 
 | 示例无人机 | 用途 | 接收的指令 |
 | --- | --- | --- |
 | `BP_UBotNavigationDrone` | 导航、规划、感知 | 速度、偏航角速度 |
 | `BP_UBotPhysicsDrone` | 真实的动力学，使用内置飞控 | 速度、姿态、角速度、单电机 |
 | `BP_UBotBareAirframeDrone` | 飞控研究，使用自己编写的控制器 | 角速度、单电机 |
+
+## 风场与迁移
+
+尚未发布的 0.1.2 将风源移到 uBotEnvironment。无人机的相对空气阻力和导航漂移补偿仍由 Aerial 计算，通过 uBotCore 0.1.4 的风提供者接口读取风速。Aerial 不依赖 uBotEnvironment，没有提供者时风速为零。
+
+已有蓝图和关卡若使用了风，请先安装并启用 uBotEnvironment，重启编辑器，再打开、编译并保存资产。Environment 会重定向旧的 `UBotWind`、`UBotWindSubsystem` 和 `UBotWindSettings` 反射类型，属性、函数和默认值保持不变。原生调用方需要在模块依赖中加入 `UBotEnvironment`，使用 `UBotEnvironmentTypes.h` 引入 `FUBotWindSettings`，并重新编译；CoreRedirects 不兼容旧 C++ 二进制。
+
+示例地图移除了原先默认关闭的风 Actor，全部无人机示例均可独立使用。试风时添加 Environment 的 `uBot Wind` 即可。这些开发版本尚不能通过 uBot Manager 安装。
 
 ## 安装
 

@@ -22,7 +22,7 @@ bool FUBotAerialModuleLoadsTest::RunTest(const FString& Parameters)
 
     TestEqual(TEXT("Layer"), Package->Layer, EUBotPackageLayer::Capability);
     TestEqual(TEXT("Provides"), FString::Join(Package->Provides, TEXT(",")),
-        FString(TEXT("Actuation.Velocity,Actuation.Attitude,Actuation.Motor,Body.Multirotor,Aerial.Wind")));
+        FString(TEXT("Actuation.Velocity,Actuation.Attitude,Actuation.Motor,Body.Multirotor")));
     TestEqual(TEXT("Engine plugins"), FString::Join(Package->ExternalRequires, TEXT(",")), FString(TEXT("EnhancedInput")));
     if (TestEqual(TEXT("One requirement"), Package->Requires.Num(), 1))
     {

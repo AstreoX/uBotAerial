@@ -11,7 +11,7 @@
 
 class FUBotMultirotorCollision;
 class UUBotRotorComponent;
-class UUBotWindSubsystem;
+class UUBotWindQuerySubsystem;
 struct FUBotMultirotorContacts;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FUBotMultirotorImpactEvent, const FHitResult&, Hit, float, ImpactSpeedMetersPerSecond);
@@ -211,7 +211,7 @@ private:
     TSharedPtr<FUBotMultirotorCollision> Collision;
     TArray<FQueuedImpact> QueuedImpacts;
     TArray<TWeakObjectPtr<UUBotRotorComponent>> Rotors;
-    TWeakObjectPtr<const UUBotWindSubsystem> WindSubsystem;
+    TWeakObjectPtr<const UUBotWindQuerySubsystem> WindQuery;
     FTransform LastPresentedTransform = FTransform::Identity;
     FVector Gravity = FVector(0.0, 0.0, -9.80665);
     int64 StepCount = 0;

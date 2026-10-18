@@ -12,102 +12,80 @@
 #include "UBotMultirotorMath.h"
 #include "UBotMultirotorMovementComponent.h"
 #include "UBotSimpleFlightComponent.h"
-#include "UBotWind.h"
-#include "UBotWindSubsystem.h"
+#include "UBotAerialWindTestTypes.h"
+#include "UBotWindQuerySubsystem.h"
+#include "UObject/StrongObjectPtr.h"
 
 namespace UBotAerialWindInputTests
 {
     using namespace UBotAerialTests;
 
-    FUBotWindSettings MakeWind(const FVector& Constant, const FVector& Gust = FVector::ZeroVector, int32 Seed = 0)
+    // Isolate the flight response from whichever optional environment the host has enabled.
+    class FScopedWindProvider
     {
-        FUBotWindSettings Settings;
-        Settings.ConstantVelocityMetersPerSecond = Constant;
-        Settings.GustStandardDeviationMetersPerSecond = Gust;
-        Settings.Seed = Seed;
-        return Settings;
-    }
+    public:
+        UE_NONCOPYABLE(FScopedWindProvider);
 
-    AUBotWind* SpawnWind(const FScopedAerialTestWorld& Scope, const FUBotWindSettings& Settings)
-    {
-        AUBotWind* Wind = Scope.Spawn<AUBotWind>(FVector::ZeroVector);
-        Wind->Settings = Settings;
-        Wind->DispatchBeginPlay();
-        return Wind;
-    }
+        explicit FScopedWindProvider(const FScopedAerialTestWorld& Scope, const FVector& Velocity = FVector::ZeroVector)
+            : Query(Scope.Get()->GetSubsystem<UUBotWindQuerySubsystem>())
+            , Provider(NewObject<UUBotAerialTestWindProvider>(Scope.Get()))
+        {
+            check(Query);
+            Scope.Get()->ForEachSubsystem<UWorldSubsystem>([this](UWorldSubsystem* Subsystem)
+            {
+                if (Cast<IUBotWindProvider>(Subsystem))
+                {
+                    PreviousProvider = Subsystem;
+                    Query->UnregisterProvider(Subsystem);
+                }
+            });
+            Provider->Velocity = Velocity;
+            const bool bRegistered = Query->RegisterProvider(Provider.Get());
+            check(bRegistered);
+        }
+
+        ~FScopedWindProvider()
+        {
+            Query->UnregisterProvider(Provider.Get());
+            if (PreviousProvider.IsValid())
+            {
+                Query->RegisterProvider(PreviousProvider.Get());
+            }
+        }
+
+        UUBotAerialTestWindProvider* Get() const { return Provider.Get(); }
+
+    private:
+        UUBotWindQuerySubsystem* Query;
+        TStrongObjectPtr<UUBotAerialTestWindProvider> Provider;
+        TWeakObjectPtr<UObject> PreviousProvider;
+    };
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialWindGustTest, "UBotAerial.Wind.GustDeterministic", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialWindSamplingTest, "UBotAerial.Wind.CoreSampling", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-bool FUBotAerialWindGustTest::RunTest(const FString& Parameters)
-{
-    using namespace UBotAerialWindInputTests;
-    const FUBotWindSettings Settings = MakeWind(FVector::ZeroVector, FVector(1.0, 2.0, 0.5), 7);
-    UBot::Wind::FGustModel A;
-    UBot::Wind::FGustModel B;
-    UBot::Wind::FGustModel Other;
-    A.Build(Settings);
-    B.Build(Settings);
-    FUBotWindSettings OtherSettings = Settings;
-    OtherSettings.Seed = 8;
-    Other.Build(OtherSettings);
-
-    bool bSame = true;
-    bool bDiffers = false;
-    FVector Sum = FVector::ZeroVector;
-    FVector SumSquares = FVector::ZeroVector;
-    constexpr int32 Samples = 60000;
-    for (int32 Index = 0; Index < Samples; ++Index)
-    {
-        const double Time = Index * 0.01;
-        const FVector Gust = A.Evaluate(Time);
-        bSame &= Gust == B.Evaluate(Time);
-        bDiffers |= !Gust.Equals(Other.Evaluate(Time), 1e-6);
-        Sum += Gust;
-        SumSquares += Gust * Gust;
-    }
-    TestTrue(TEXT("Same settings, same gusts"), bSame);
-    TestTrue(TEXT("Another seed, other gusts"), bDiffers);
-    for (int32 Axis = 0; Axis < 3; ++Axis)
-    {
-        const double Sigma = Settings.GustStandardDeviationMetersPerSecond[Axis];
-        const double Mean = Sum[Axis] / Samples;
-        const double Rms = FMath::Sqrt(SumSquares[Axis] / Samples);
-        TestTrue(FString::Printf(TEXT("Axis %d: RMS %.3f within 15%% of %.3f"), Axis, Rms, Sigma), FMath::Abs(Rms - Sigma) <= 0.15 * Sigma);
-        TestTrue(FString::Printf(TEXT("Axis %d: mean %.3f near zero"), Axis, Mean), FMath::Abs(Mean) <= 0.1 * Sigma);
-    }
-
-    UBot::Wind::FGustModel Calm;
-    Calm.Build(MakeWind(FVector(3.0, 0.0, 0.0)));
-    TestTrue(TEXT("No gusts without a deviation"), Calm.Evaluate(12.3).IsZero());
-    return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialWindSourcesTest, "UBotAerial.Wind.ActorAndScripted", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FUBotAerialWindSourcesTest::RunTest(const FString& Parameters)
+bool FUBotAerialWindSamplingTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialWindInputTests;
     FScopedAerialTestWorld Scope;
-    UUBotWindSubsystem* Wind = Scope.Get()->GetSubsystem<UUBotWindSubsystem>();
-    if (!TestNotNull(TEXT("Wind subsystem in a game world"), Wind))
+    FScopedWindProvider Wind(Scope);
+    const FVector StartCentimeters(125.0, -250.0, 1000.0);
+    AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(StartCentimeters);
+    UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
+    if (!TestNotNull(TEXT("Navigation drone"), Flight))
     {
         return false;
     }
-    TestTrue(TEXT("Calm by default"), Wind->GetWindVelocityAt(FVector::ZeroVector).IsZero());
-
-    AUBotWind* First = SpawnWind(Scope, MakeWind(FVector(2.0, 0.0, 0.0)));
-    SpawnWind(Scope, MakeWind(FVector(0.0, -1.0, 0.0)));
-    TestTrue(TEXT("Actors add up"), Wind->GetWindVelocityAt(FVector::ZeroVector).Equals(FVector(2.0, -1.0, 0.0), 1e-12));
-    Wind->SetScriptedWind(MakeWind(FVector(0.0, 0.0, 0.5)));
-    TestTrue(TEXT("Scripted wind adds too"), Wind->GetWindVelocityAt(FVector(1000.0, 0.0, 0.0)).Equals(FVector(2.0, -1.0, 0.5), 1e-12));
-    First->SetWindSettings(MakeWind(FVector(4.0, 0.0, 0.0)));
-    TestTrue(TEXT("Changed settings apply"), Wind->GetWindVelocityAt(FVector::ZeroVector).Equals(FVector(4.0, -1.0, 0.5), 1e-12));
-    First->SetWindEnabled(false);
-    Wind->SetScriptedWind(FUBotWindSettings(), false);
-    TestTrue(TEXT("Disabled and cleared"), Wind->GetWindVelocityAt(FVector::ZeroVector).Equals(FVector(0.0, -1.0, 0.0), 1e-12));
-    First->RouteEndPlay(EEndPlayReason::Destroyed);
-    TestTrue(TEXT("Ended actors leave"), Wind->GetWindVelocityAt(FVector::ZeroVector).Equals(FVector(0.0, -1.0, 0.0), 1e-12));
+    Scope.RunFor(0.1);
+    TestTrue(TEXT("The flight model queries the Core provider"), Wind.Get()->Queries > 1);
+    TestTrue(TEXT("Provider receives world position in centimeters"), Wind.Get()->LastLocationCentimeters.Equals(StartCentimeters, 1e-9));
+    const double StepSeconds = 1.0 / Flight->PhysicsRateHz;
+    TestEqual(TEXT("Provider receives the start time of the latest fixed physics step"),
+        Wind.Get()->LastTimeSeconds, Flight->GetMultirotorState().SimTimeSeconds - StepSeconds, 1e-12);
+    const int32 QueriesBeforeDisabling = Wind.Get()->Queries;
+    Flight->bEnableWind = false;
+    Scope.RunFor(0.1);
+    TestEqual(TEXT("Disabling wind bypasses the provider"), Wind.Get()->Queries, QueriesBeforeDisabling);
     return true;
 }
 
@@ -117,7 +95,7 @@ bool FUBotAerialWindPhysicsTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialWindInputTests;
     FScopedAerialTestWorld Scope;
-    SpawnWind(Scope, MakeWind(FVector(5.0, 0.0, 0.0)));
+    FScopedWindProvider Wind(Scope, FVector(5.0, 0.0, 0.0));
     AUBotAerialTestPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestPhysicsDrone>(FVector(0.0, 0.0, 1000.0));
     UUBotMultirotorDynamicsComponent* Dynamics = Drone ? Drone->GetDynamics() : nullptr;
     if (!TestNotNull(TEXT("Physics drone"), Dynamics))
@@ -147,6 +125,7 @@ bool FUBotAerialWindSimpleTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialWindInputTests;
     FScopedAerialTestWorld Scope;
+    FScopedWindProvider Wind(Scope);
     AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 1000.0));
     UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
     if (!TestNotNull(TEXT("Navigation drone"), Flight))
@@ -155,7 +134,7 @@ bool FUBotAerialWindSimpleTest::RunTest(const FString& Parameters)
     }
     Scope.RunFor(1.0);
     // A 3 m/s gust front arrives: the drone drifts, then compensates.
-    Scope.Get()->GetSubsystem<UUBotWindSubsystem>()->SetScriptedWind(MakeWind(FVector(0.0, 3.0, 0.0)));
+    Wind.Get()->Velocity = FVector(0.0, 3.0, 0.0);
     const FVector Start = Flight->GetMultirotorState().PositionMeters;
     double Drift = 0.0;
     Scope.RunFor(8.0, FrameSeconds, [&] { Drift = FMath::Max(Drift, (Flight->GetMultirotorState().PositionMeters - Start).Size()); });

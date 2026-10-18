@@ -240,29 +240,6 @@ struct UBOTAERIAL_API FUBotFlightSetpoint
     double VerticalVelocityMetersPerSecond = 0.0;
 };
 
-/** Wind: a constant part plus gusts. The gusts are a sum of sines with seeded phases, so the same settings give the same wind at the same sim time. */
-USTRUCT(BlueprintType)
-struct UBOTAERIAL_API FUBotWindSettings
-{
-    GENERATED_BODY()
-
-    /** Steady wind velocity in the world frame, m/s (the direction the air moves). */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind")
-    FVector ConstantVelocityMetersPerSecond = FVector::ZeroVector;
-
-    /** Standard deviation of the gusts per world axis, m/s. Zero turns gusts off. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind")
-    FVector GustStandardDeviationMetersPerSecond = FVector::ZeroVector;
-
-    /** Typical duration of a gust, s. Longer is smoother. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind", meta = (ClampMin = "0.05", Units = "Seconds"))
-    float GustCorrelationTimeSeconds = 2.0f;
-
-    /** Seed of the gust pattern. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind")
-    int32 Seed = 0;
-};
-
 /** How keyboard and gamepad input flies a multirotor. Append new values at the end. */
 UENUM(BlueprintType)
 enum class EUBotManualFlightMode : uint8

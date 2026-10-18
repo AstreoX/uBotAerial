@@ -29,13 +29,21 @@ uBot Aerial adds multirotor drones to Unreal Engine 5.5 as a uBot plugin. It inc
 - **Rigid-body dynamics:** rotor thrust, motor lag, drag and wind; velocity, attitude, body-rate and per-motor commands.
 - **Custom flight controllers:** subclass `uBot Flight Controller` in Blueprint or C++ to replace the built-in one.
 - **Manual flight:** keyboard or gamepad in Velocity, Angle or Rate mode.
-- **Wind and collision:** constant wind with seeded gusts; drones slide along walls and the ground.
+- **Wind response and collision:** reads optional shared wind fields; drones slide along walls and the ground.
 
 | Example drone | Use | Commands |
 | --- | --- | --- |
 | `BP_UBotNavigationDrone` | Navigation, planning, perception | Velocity, yaw rate |
 | `BP_UBotPhysicsDrone` | Realistic dynamics with the built-in controller | Velocity, attitude, body rate, single motor |
 | `BP_UBotBareAirframeDrone` | Flight control research with your own controller | Body rate, single motor |
+
+## Wind fields and migration
+
+The unreleased 0.1.2 moves wind sources to uBotEnvironment. Aerial still computes air-relative drag and navigation drift compensation, through the wind provider contract in uBotCore 0.1.4. It has no dependency on uBotEnvironment; without a provider, wind velocity is zero.
+
+To keep wind in existing Blueprints and levels, install and enable uBotEnvironment before opening those assets, restart the editor, then compile and save them. Environment redirects the old `UBotWind`, `UBotWindSubsystem` and `UBotWindSettings` reflected types; their properties, functions and defaults are unchanged. Native callers must add `UBotEnvironment` to their module dependencies, include `UBotEnvironmentTypes.h` for `FUBotWindSettings`, and rebuild. CoreRedirects do not preserve old C++ binaries.
+
+The demo map no longer contains its previously disabled wind actor, so all Aerial examples work independently. Add a `uBot Wind` from Environment to try wind. These development versions are not yet available through uBot Manager.
 
 ## Install
 
