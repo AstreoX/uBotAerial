@@ -13,6 +13,7 @@ class FUBotMultirotorCollision;
 class UUBotRotorComponent;
 class UUBotWindQuerySubsystem;
 struct FUBotMultirotorContacts;
+class FUBotAerialBodyStateHistory;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FUBotMultirotorImpactEvent, const FHitResult&, Hit, float, ImpactSpeedMetersPerSecond);
 
@@ -101,9 +102,12 @@ public:
     // IUBotBodyStateSource
     virtual bool ProvidesBodyState(const USceneComponent* Body) const override;
     virtual bool GetBodyState(const USceneComponent* Body, FUBotBodyState& OutState) const override;
+    virtual TSharedPtr<const IUBotBodyStateHistory> AcquireBodyStateHistory(const USceneComponent* Body) override;
 
     // UActorComponent
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    virtual void OnUnregister() override;
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
     /** The physics step clock (for tests and tools). */
@@ -223,4 +227,9 @@ private:
     bool bDroppedStepsWarned = false;
     /** The first frame after the flight started (its hitch, e.g. starting play in the editor, is not warned about). */
     bool bFirstFrame = false;
+    TWeakPtr<FUBotAerialBodyStateHistory> BodyStateHistory;
+    void RecordBodyStateHistory(bool bDiscontinuous = false);
+    void ResetBodyStateHistory();
+    bool bHistoryImpactThisStep = false;
+    bool bHistoryEnded = false;
 };

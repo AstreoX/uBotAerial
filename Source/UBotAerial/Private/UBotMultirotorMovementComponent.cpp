@@ -1,4 +1,5 @@
 #include "UBotMultirotorMovementComponent.h"
+#include "UBotAerialBodyStateHistory.h"
 
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
@@ -30,6 +31,7 @@ UUBotMultirotorMovementComponent::~UUBotMultirotorMovementComponent() = default;
 
 void UUBotMultirotorMovementComponent::BeginPlay()
 {
+    bHistoryEnded = false;
     Super::BeginPlay();
 
     Rotors.Reset();
@@ -97,6 +99,7 @@ void UUBotMultirotorMovementComponent::StartFlight()
     LastPresentedTransform = UpdatedComponent->GetComponentTransform();
     Velocity = FVector::ZeroVector;
     UpdateComponentVelocity();
+    ResetBodyStateHistory();
 }
 
 void UUBotMultirotorMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -127,6 +130,12 @@ void UUBotMultirotorMovementComponent::TickComponent(float DeltaTime, ELevelTick
     PhysicsClock.SetRate(PhysicsRateHz);
     const int64 DroppedBefore = PhysicsClock.GetDroppedSteps();
     const int32 Steps = PhysicsClock.GetStepsDue(Now, MaxStepsPerFrame);
+    if (PhysicsClock.GetDroppedSteps() > DroppedBefore)
+    {
+        // GetStepsDue advanced the clock across an unintegrated gap. Do not label the old state
+        // with that new time: recording resumes only after a real step completes.
+        if (TSharedPtr<FUBotAerialBodyStateHistory> History = BodyStateHistory.Pin()) { History->Clear(); }
+    }
     const bool bFrameAfterStart = bFirstFrame;
     bFirstFrame = false;
     if (PhysicsClock.GetDroppedSteps() > DroppedBefore && !bDroppedStepsWarned && !bFrameAfterStart)
@@ -153,11 +162,13 @@ void UUBotMultirotorMovementComponent::TickComponent(float DeltaTime, ELevelTick
             const FVector VelocityBefore = LinearVelocity;
             const FVector WorldAngularVelocityBefore = Orientation.RotateVector(AngularVelocity);
             bContactThisStep = false;
+            bHistoryImpactThisStep = false;
             SimulateStep(StepSeconds);
             PhysicsClock.AdvanceStep();
             ++StepCount;
             LinearAcceleration = (LinearVelocity - VelocityBefore) / StepSeconds;
             AngularAcceleration = (Orientation.RotateVector(AngularVelocity) - WorldAngularVelocityBefore) / StepSeconds;
+            RecordBodyStateHistory(bHistoryImpactThisStep);
             bContactLastStep = bContactThisStep;
         }
     }
@@ -179,6 +190,7 @@ void UUBotMultirotorMovementComponent::SyncExternalTeleport()
     Orientation = Current.GetRotation().GetNormalized();
     LastPresentedTransform = Current;
     HandleExternalTeleport();
+    ResetBodyStateHistory();
 }
 
 FTransform UUBotMultirotorMovementComponent::ComputePresentedTransform(double ExtrapolationSeconds) const
@@ -265,6 +277,7 @@ double UUBotMultirotorMovementComponent::ApplyContacts(const FUBotMultirotorCont
     }
 
     const double Sliding = InOutVelocity.Size();
+    bHistoryImpactThisStep |= MaxImpact > UE_DOUBLE_SMALL_NUMBER;
     if (MaxImpact > 0.0 && ContactFriction > 0.0 && Sliding > UE_DOUBLE_SMALL_NUMBER)
     {
         InOutVelocity *= FMath::Max(0.0, 1.0 - ContactFriction * MaxImpact / Sliding);
@@ -371,6 +384,58 @@ void UUBotMultirotorMovementComponent::TeleportMultirotor(FVector NewLocation, F
     {
         HandleExternalTeleport();
     }
+    ResetBodyStateHistory();
+}
+
+TSharedPtr<const IUBotBodyStateHistory> UUBotMultirotorMovementComponent::AcquireBodyStateHistory(const USceneComponent* Body)
+{
+    if (bHistoryEnded || !IsRegistered()) { return nullptr; }
+    check(IsInGameThread());
+    if (!ProvidesBodyState(Body)) { return nullptr; }
+    TSharedPtr<FUBotAerialBodyStateHistory> History = BodyStateHistory.Pin();
+    if (History && !History->IsForBody(Body)) { History->Invalidate(); History.Reset(); }
+    if (!History)
+    {
+        const int32 Capacity = static_cast<int32>(FMath::Clamp<int64>(2LL * MaxStepsPerFrame + 2, 4, MAX_int32));
+        History = MakeShared<FUBotAerialBodyStateHistory>(Body, Capacity);
+        BodyStateHistory = History;
+        FUBotBodyState State;
+        if (GetBodyState(Body, State)) { History->Append(State); }
+    }
+    return History;
+}
+
+void UUBotMultirotorMovementComponent::RecordBodyStateHistory(bool bDiscontinuous)
+{
+    if (TSharedPtr<FUBotAerialBodyStateHistory> History = BodyStateHistory.Pin())
+    {
+        if (!History->IsForBody(UpdatedComponent)) { History->Invalidate(); BodyStateHistory.Reset(); return; }
+        History->SetCapacity(static_cast<int32>(FMath::Clamp<int64>(2LL * MaxStepsPerFrame + 2, 4, MAX_int32)));
+        if (bDiscontinuous) { History->BreakSegment(); }
+        FUBotBodyState State;
+        if (GetBodyState(UpdatedComponent, State)) { History->Append(State); }
+    }
+}
+
+void UUBotMultirotorMovementComponent::ResetBodyStateHistory()
+{
+    if (TSharedPtr<FUBotAerialBodyStateHistory> History = BodyStateHistory.Pin()) { History->Clear(); }
+    RecordBodyStateHistory();
+}
+
+void UUBotMultirotorMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    bHistoryEnded = true;
+    if (TSharedPtr<FUBotAerialBodyStateHistory> History = BodyStateHistory.Pin()) { History->Invalidate(); }
+    BodyStateHistory.Reset();
+    Super::EndPlay(EndPlayReason);
+}
+
+void UUBotMultirotorMovementComponent::OnUnregister()
+{
+    if (TSharedPtr<FUBotAerialBodyStateHistory> History = BodyStateHistory.Pin()) { History->Invalidate(); }
+    BodyStateHistory.Reset();
+    Super::OnUnregister();
 }
 
 FString UUBotMultirotorMovementComponent::GetActuatorId_Implementation() const

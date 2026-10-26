@@ -86,6 +86,7 @@ git clone --branch v0.1.0 https://github.com/AstreoX/uBotAerial.git <Project>/Pl
 | 从 ROS 2 控制无人机 | [从 ROS 2 发飞行指令](https://astreox.github.io/uBotDocs/ros/flight-commands/) |
 | 查看 C++ 示例 | [docs/CPP.md](docs/CPP.md) |
 | 查看飞行模型细节与验收指标 | [docs/FLIGHT-MODELS.md](docs/FLIGHT-MODELS.md) |
+| 读取已完成物理步的只读历史 | [docs/BODY-STATE-HISTORY.md](docs/BODY-STATE-HISTORY.md) |
 | 构建插件并运行测试 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 
 ## uBot 系列

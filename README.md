@@ -86,6 +86,7 @@ The manual is on the [docs site](https://astreox.github.io/uBotDocs/aerial/), wh
 | Command a drone from ROS 2 | [Flight commands from ROS 2](https://astreox.github.io/uBotDocs/ros/flight-commands/) |
 | Read the C++ examples | [docs/CPP.md](docs/CPP.md) |
 | See the flight model details and acceptance criteria | [docs/FLIGHT-MODELS.md](docs/FLIGHT-MODELS.md) |
+| Consume completed physics states without owning the drone | [docs/BODY-STATE-HISTORY.md](docs/BODY-STATE-HISTORY.md) |
 | Build the plugin and run the tests | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 
 ## uBot series
