@@ -52,6 +52,8 @@ uBotAerial 是 **Capability**（能力）层，依赖 `UBotCore ^0.1.2`（姿态
 
 蓝图本身的默认值：`Auto Possess AI` 是 `Disabled`，`Start with Tick Enabled` 关闭（行为都在组件里）。
 
+三个示例的 `CameraBoom` 都挂在 `CollisionBox` 下，相对位置 Z 为 20 cm，臂长 120 cm，俯角 15°。碰撞探测保持开启，`Probe Size` 为 12 cm；抬高起点让无人机贴地时探测球不与地板初始重叠，相机仍能在贴墙时缩臂。
+
 ## 测试
 
 测试名都以 `UBotAerial.` 开头，按类别分组：
@@ -59,12 +61,12 @@ uBotAerial 是 **Capability**（能力）层，依赖 `UBotCore ^0.1.2`（姿态
 - `SimpleFlight.*`、`Math.SimpleFlightModel`：阶跃响应、偏航角速度、指令截断、有界刹车、逐轴的最小位移、比力、逐帧呈现无抖动，验收指标见“导航无人机的简化飞行模型”。
 - `Dynamics.*`、`Controller.*`、`Math.ThrustAllocation`：10 s 悬停、速度阶跃、偏航角速度、有界刹车、电机全为 0 的自由落体、指令丢失（`Hover`、`Land`、`CutMotors`、超时）、各无人机接受的指令类型、姿态和角速度跟踪、自定义飞控（每步一次、`ControllerRateDivider`、个数错误）。推力分配：最大总推力，可行请求的往返误差，横滚、俯仰、偏航的符号，偏航饱和时先削减偏航。
 - `Collision.*`：撞墙停住、45° 墙面滑动、地面只是一个表面（导航无人机下降到地面、贴着地面前进、随即爬升；物理无人机在地面上下压、前进、爬升）、放在地面上的起步和 `Reset Flight`、高速撞墙后继续飞行并接受指令、外部移动与 `Teleport Multirotor`。
-- `Wind.*`：阵风的确定性和统计量，`uBot Wind` 与脚本风叠加，物理无人机的稳态风响应，导航无人机的风速阶跃。
+- `Wind.*`：Core 风查询、物理无人机的稳态风响应、导航无人机的风速阶跃，以及 5 m/s 风速突变下对角墙面的实际碰撞与风致 `OnImpact`。
 - `Input.*`：轴到指令的映射（`Velocity`、`Angle`、`Rate` 的符号和幅值，死区），默认键位不重复、每个轴有正负键和摇杆，映射上下文与键位一致。
 - `Base.PauseNoMotion`、`Determinism.*`：暂停期间没有物理步、恢复后不补跑，两次运行逐位相同，不同帧率下恒定指令的结果相同。
 - `BodyState.*`：刚体状态源只提供根组件（BeginPlay 之前就成立，BeginPlay 之后才有状态）；状态就是积分器的状态，而不是外推后的呈现位姿，角速度在世界系且与姿态的转动率一致；角加速度等于单个物理步里世界角速度的变化，`Reset Flight` 和传送后为零。
 - `Math.*`：固定步长时钟（每秒恰好 500 步，一帧跑 8 或 9 步，超限的步数被丢弃并计数）、姿态与推力方向、指令截断、四旋翼 X 布局；`Math.BodyRateBetweenSmallAngles`：两个姿态之间的机体系角速度，转角小到每步不足 2e-4 rad（500 Hz 下低于 0.1 rad/s）时转轴也是对的。
-- `Examples.*`：示例蓝图的组件构成（旋翼在机架的位置上，`Movement` 的类型和设置），物理示例的悬停和速度阶跃，示例资产的内容依赖（只引用 `/UBotAerial`、`/Engine` 和 `/Script`）。
+- `Examples.*`：示例蓝图的组件构成（旋翼在机架的位置上，`Movement` 的类型和设置，地面 BeginPlay 后相机离机体超过 1 m 且碰撞开启），物理示例的悬停和速度阶跃，示例资产的内容依赖（只引用 `/UBotAerial`、`/Engine` 和 `/Script`）。
 - `Module.Loads`、`Backend.Selection`：包注册表里的层、能力键和依赖，后端的选择和回退。
 
 测试在手动 tick 的临时 Game 世界里运行，不需要 GPU，需要在启用了 UBotCore 和 UBotAerial 的工程里用带编辑器上下文的 `UnrealEditor` 运行。编辑器内：`Tools` 菜单打开 Session Frontend 的 Automation 标签页，过滤 `UBotAerial`。命令行：
