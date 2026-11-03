@@ -144,6 +144,58 @@ bool FUBotAerialWindSimpleTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialWindStepCollisionTest, "UBotAerial.Wind.StepCollision", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FUBotAerialWindStepCollisionTest::RunTest(const FString& Parameters)
+{
+    using namespace UBotAerialWindInputTests;
+    FScopedAerialTestWorld Scope;
+    FScopedWindProvider Wind(Scope);
+    const FVector Normal = FVector(1.0, 1.0, 0.0).GetSafeNormal();
+    const FVector StartCm(0.0, 0.0, 1000.0);
+    constexpr double WallFaceCm = 44.5;
+    constexpr double WallHalfDepthCm = 10.0;
+    // Issue #5: the old free-space sphere stopped at 44.231 cm, before this diagonal wall.
+    Scope.SpawnBox(StartCm + Normal * (WallFaceCm + WallHalfDepthCm),
+        FVector(WallHalfDepthCm, 1000.0, 1000.0), FRotator(0.0, 45.0, 0.0));
+    AUBotAerialTestNavigationDrone* Drone = Scope.Spawn<AUBotAerialTestNavigationDrone>(StartCm);
+    UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
+    if (!TestNotNull(TEXT("Navigation drone"), Flight))
+    {
+        return false;
+    }
+    Flight->PhysicsRateHz = 500.0f;
+    Flight->WindResponse = 0.5f;
+    Flight->WindRejectionTimeConstantSeconds = 1.0f;
+    Drone->DispatchBeginPlay();
+    TStrongObjectPtr<UUBotAerialTestListener> Listener(NewObject<UUBotAerialTestListener>());
+    Flight->OnImpact.AddDynamic(Listener.Get(), &UUBotAerialTestListener::HandleImpact);
+
+    // Initialize compensation in zero wind, then advance exactly eight 2 ms steps in one frame.
+    Scope.Tick(0.032f);
+    const int64 StepsBefore = Flight->GetPhysicsStepCount();
+    Wind.Get()->Velocity = Normal * 5.0;
+    Scope.Tick(0.016f);
+    TestEqual(TEXT("Gust frame advances eight fixed steps"), Flight->GetPhysicsStepCount() - StepsBefore, int64(8));
+
+    const FVector HalfExtentCm = Drone->CollisionBox->GetScaledBoxExtent();
+    const double SupportCm = HalfExtentCm.X * Normal.X + HalfExtentCm.Y * Normal.Y;
+    const FUBotMultirotorState State = Flight->GetMultirotorState();
+    const double TravelCm = FVector::DotProduct(State.PositionMeters * 100.0 - StartCm, Normal);
+    const double GapCm = WallFaceCm - SupportCm - TravelCm;
+    TestTrue(FString::Printf(TEXT("Wind reaches the wall without penetrating (gap %.6f cm)"), GapCm), GapCm >= -1e-3 && GapCm <= 0.2);
+    TestTrue(TEXT("Wind-driven velocity no longer points into the wall"), FVector::DotProduct(State.LinearVelocityMetersPerSecond, Normal) <= 1e-6);
+    TestEqual(TEXT("Pure wind collision emits one impact"), Listener->ImpactSpeeds.Num(), 1);
+    if (!Listener->ImpactSpeeds.IsEmpty())
+    {
+        TestTrue(TEXT("Impact uses the wind-driven approach speed"), Listener->ImpactSpeeds[0] > 2.4f);
+        TestTrue(TEXT("Impact normal points away from the wall"), FVector::DotProduct(Listener->LastImpactNormal, Normal) < -0.999);
+    }
+    TestTrue(TEXT("Presented body also remains before the wall"),
+        FVector::DotProduct(Drone->GetActorLocation() - StartCm, Normal) + SupportCm <= WallFaceCm + 1e-3);
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialInputMappingTest, "UBotAerial.Input.Mapping", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FUBotAerialInputMappingTest::RunTest(const FString& Parameters)

@@ -100,17 +100,34 @@ void UUBotSimpleFlightComponent::SimulateStep(double StepSeconds)
     if (Contacts.HasContact())
     {
         // The surface stops the motion into it; the drone slides along it and keeps following commands.
-        ApplyContacts(Contacts, Model.Velocity);
+        // Wind contributes to the actual approach speed, including OnImpact and friction.
+        FVector SlidingVelocity = LinearVelocity;
+        ApplyContacts(Contacts, LinearVelocity);
         for (const FHitResult& Hit : Contacts.Hits)
         {
+            const double IntoVelocity = FVector::DotProduct(Model.Velocity, Hit.Normal);
+            if (IntoVelocity < 0.0)
+            {
+                Model.Velocity -= Hit.Normal * IntoVelocity;
+            }
+            const double IntoSliding = FVector::DotProduct(SlidingVelocity, Hit.Normal);
+            if (IntoSliding < 0.0)
+            {
+                SlidingVelocity -= Hit.Normal * IntoSliding;
+            }
             const double IntoSurface = FVector::DotProduct(Model.Acceleration, Hit.Normal);
             if (IntoSurface < 0.0)
             {
                 Model.Acceleration -= Hit.Normal * IntoSurface;
             }
         }
-        Model.WindDrift = FVector::ZeroVector;
-        LinearVelocity = Model.Velocity;
+        const double SlidingSpeed = SlidingVelocity.Size();
+        if (SlidingSpeed > UE_DOUBLE_SMALL_NUMBER)
+        {
+            Model.Velocity *= LinearVelocity.Size() / SlidingSpeed;
+        }
+        // Keep tracking and wind separate: the next model step recomputes the wind drift.
+        Model.WindDrift = LinearVelocity - Model.Velocity;
     }
     AngularVelocity = UBot::Multirotor::BodyRateBetween(Before, Orientation, StepSeconds);
 }
@@ -145,6 +162,6 @@ double UUBotSimpleFlightComponent::GetMaxAccelerationBound() const
 {
     const double Tracking = FMath::Max3(MaxHorizontalAccelerationMetersPerSecondSquared, MaxVerticalAccelerationMetersPerSecondSquared,
         FMath::Max(BrakeHorizontalAccelerationMetersPerSecondSquared, BrakeVerticalAccelerationMetersPerSecondSquared));
-    // Wind changes move the drone too; gusts stay well below this.
+    // Heuristic probe size only: actual travel is checked before a sweep can be skipped.
     return Tracking * 1.5 + 10.0;
 }
