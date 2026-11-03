@@ -164,7 +164,7 @@ protected:
     /** Rotor speeds reported in the state (motor order, rad/s); empty when the model has no rotors. */
     virtual void GetRotorSpeeds(TArray<double>& OutSpeeds) const { OutSpeeds.Reset(); }
 
-    /** Upper bound of the acceleration this model can reach, m/s² (sizes the free-space check per frame). */
+    /** Acceleration estimate in m/s² for sizing the free-space probe; actual travel is checked before skipping a sweep. */
     virtual double GetMaxAccelerationBound() const { return 50.0; }
 
     /**
@@ -223,6 +223,8 @@ private:
     /** Accepted before the flight started; runs once after the model was reset at the start. */
     TFunction<void()> PendingStartCommand;
     bool bFreeSpaceThisFrame = false;
+    /** Unspent actual path length covered by this frame's empty-space probe, cm. */
+    double FreeSpaceTravelRemainingCm = 0.0;
     bool bContactLastStep = false;
     bool bDroppedStepsWarned = false;
     /** The first frame after the flight started (its hitch, e.g. starting play in the editor, is not warned about). */

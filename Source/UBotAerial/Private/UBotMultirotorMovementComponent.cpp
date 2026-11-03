@@ -149,12 +149,14 @@ void UUBotMultirotorMovementComponent::TickComponent(float DeltaTime, ELevelTick
     {
         const double StepSeconds = PhysicsClock.GetStepSeconds();
         const double Span = Steps * StepSeconds;
-        // One overlap test per frame: when nothing is within reach, the per-step sweeps would find nothing either.
+        // Size one free-space probe per frame. This is only a prediction: wind or a custom model
+        // can move farther. MoveBody consumes its clearance with actual substep displacements.
         bFreeSpaceThisFrame = true;
+        FreeSpaceTravelRemainingCm = 0.0;
         if (Collision)
         {
-            const double ReachCm = (LinearVelocity.Size() * Span + 0.5 * GetMaxAccelerationBound() * Span * Span) * 100.0 + 2.0;
-            bFreeSpaceThisFrame = Collision->IsClear(PositionMeters * 100.0, Orientation, ReachCm);
+            FreeSpaceTravelRemainingCm = (LinearVelocity.Size() * Span + 0.5 * GetMaxAccelerationBound() * Span * Span) * 100.0;
+            bFreeSpaceThisFrame = Collision->IsClear(PositionMeters * 100.0, Orientation, FreeSpaceTravelRemainingCm + 2.0);
         }
 
         for (int32 Step = 0; Step < Steps; ++Step)
@@ -243,10 +245,24 @@ void UUBotMultirotorMovementComponent::BroadcastQueuedEvents()
 void UUBotMultirotorMovementComponent::MoveBody(const FVector& DeltaMeters, const FQuat& NewOrientation, FUBotMultirotorContacts& OutContacts)
 {
     Orientation = NewOrientation;
-    if (!Collision || bFreeSpaceThisFrame)
+    if (!Collision)
     {
         PositionMeters += DeltaMeters;
         return;
+    }
+    if (bFreeSpaceThisFrame)
+    {
+        const double TravelCm = DeltaMeters.Size() * 100.0;
+        if (TravelCm <= FreeSpaceTravelRemainingCm)
+        {
+            // The sum of actual path lengths bounds every intermediate center's distance from
+            // the probe origin. Its bounding sphere covers the shape at every orientation.
+            FreeSpaceTravelRemainingCm -= TravelCm;
+            PositionMeters += DeltaMeters;
+            return;
+        }
+        // The predicted clearance no longer covers this step. Sweep it and the rest of the frame.
+        bFreeSpaceThisFrame = false;
     }
     const FVector EndCm = Collision->Move(PositionMeters * 100.0, DeltaMeters * 100.0, Orientation, OutContacts);
     PositionMeters = EndCm / 100.0;
