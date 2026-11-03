@@ -31,12 +31,12 @@ namespace UBotAerialExamplesTests
         return LoadClass<APawn>(nullptr, Path);
     }
 
-    APawn* SpawnExample(const FScopedAerialTestWorld& Scope, UClass* Class, const FVector& LocationCm)
+    APawn* SpawnExample(const FScopedAerialTestWorld& Scope, UClass* Class, const FVector& LocationCm, bool bBeginPlay = true)
     {
         FActorSpawnParameters Parameters;
         Parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
         APawn* Pawn = Class ? Scope.Get()->SpawnActor<APawn>(Class, LocationCm, FRotator::ZeroRotator, Parameters) : nullptr;
-        if (Pawn)
+        if (Pawn && bBeginPlay)
         {
             Pawn->DispatchBeginPlay();
         }
@@ -72,6 +72,7 @@ bool FUBotAerialExamplesComponentsTest::RunTest(const FString& Parameters)
     };
 
     FScopedAerialTestWorld Scope;
+    Scope.SpawnFloor();
     double Offset = 0.0;
     for (const FExpected& Expected : Examples)
     {
@@ -81,7 +82,7 @@ bool FUBotAerialExamplesComponentsTest::RunTest(const FString& Parameters)
         {
             continue;
         }
-        APawn* Drone = SpawnExample(Scope, Class, FVector(Offset, 0.0, 500.0));
+        APawn* Drone = SpawnExample(Scope, Class, FVector(Offset, 0.0, 0.0), false);
         if (!TestNotNull(FString::Printf(TEXT("%s spawns"), Expected.Path), Drone))
         {
             continue;
@@ -93,6 +94,10 @@ bool FUBotAerialExamplesComponentsTest::RunTest(const FString& Parameters)
         {
             continue;
         }
+        // Match placing the example on the floor, with a small gap for collision skin.
+        Drone->SetActorLocation(FVector(Offset, 0.0, Box->GetScaledBoxExtent().Z + 0.5));
+        Drone->DispatchBeginPlay();
+        Scope.Tick(FrameSeconds);
         TestEqual(*FString::Printf(TEXT("%s: root name"), *Name), Box->GetFName(), FName(TEXT("CollisionBox")));
         TestEqual(*FString::Printf(TEXT("%s: Pawn collision profile"), *Name), Box->GetCollisionProfileName(), FName(TEXT("Pawn")));
         TestTrue(*FString::Printf(TEXT("%s: box is not simulated"), *Name), !Box->IsSimulatingPhysics());
@@ -113,6 +118,12 @@ bool FUBotAerialExamplesComponentsTest::RunTest(const FString& Parameters)
         const UCameraComponent* Camera = Drone->FindComponentByClass<UCameraComponent>();
         TestTrue(*FString::Printf(TEXT("%s: camera at the end of the boom"), *Name),
             Camera && Cast<USpringArmComponent>(Camera->GetAttachParent()) && Camera->GetAttachSocketName() == USpringArmComponent::SocketName);
+        const USpringArmComponent* CameraBoom = FindNamed<USpringArmComponent>(*Drone, TEXT("CameraBoom"));
+        TestTrue(*FString::Printf(TEXT("%s: camera boom remains attached to the collision root"), *Name),
+            CameraBoom && CameraBoom->GetAttachParent() == Box);
+        TestTrue(*FString::Printf(TEXT("%s: camera collision remains enabled"), *Name), CameraBoom && CameraBoom->bDoCollisionTest);
+        TestTrue(*FString::Printf(TEXT("%s: camera remains over 1 m from the body after BeginPlay on the floor"), *Name),
+            Camera && FVector::Dist(Camera->GetComponentLocation(), Box->GetComponentLocation()) > 100.0);
 
         TArray<FVector> Positions;
         TArray<EUBotRotorSpinDirection> Spins;
