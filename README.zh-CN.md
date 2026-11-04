@@ -39,11 +39,13 @@ uBot Aerial 是 uBot 系列的多旋翼无人机插件，适用于 Unreal Engine
 
 ## 风场与迁移
 
-尚未发布的 0.1.2 将风源移到 uBotEnvironment。无人机的相对空气阻力和导航漂移补偿仍由 Aerial 计算，通过 uBotCore 0.1.4 的风提供者接口读取风速。Aerial 不依赖 uBotEnvironment，没有提供者时风速为零。
+尚未发布的 0.2.0 源码要求 uBotCore `^0.2.0`，并将风源移到 uBotEnvironment。无人机的相对空气阻力和导航漂移补偿仍由 Aerial 计算，通过 Core 的风提供者接口读取风速。Aerial 不依赖 uBotEnvironment，没有提供者时风速为零。
 
 已有蓝图和关卡若使用了风，请先安装并启用 uBotEnvironment，重启编辑器，再打开、编译并保存资产。Environment 会重定向旧的 `UBotWind`、`UBotWindSubsystem` 和 `UBotWindSettings` 反射类型，属性、函数和默认值保持不变。原生调用方需要在模块依赖中加入 `UBotEnvironment`，使用 `UBotEnvironmentTypes.h` 引入 `FUBotWindSettings`，并重新编译；CoreRedirects 不兼容旧 C++ 二进制。
 
 示例地图移除了原先默认关闭的风 Actor，全部无人机示例均可独立使用。试风时添加 Environment 的 `uBot Wind` 即可。这些开发版本尚不能通过 uBot Manager 安装。
+
+所有依赖模块须统一重编，不能混用 0.1.x 与 0.2.0 DLL，见 [Core API 迁移](https://astreox.github.io/uBotDocs/develop/migration/#core-旧-ros-api-迁移020-开发版)。下方安装示例仍使用已发布的 0.1.x 标签。
 
 ## 安装
 
