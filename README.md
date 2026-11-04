@@ -39,7 +39,7 @@ uBot Aerial adds multirotor drones to Unreal Engine 5.5 as a uBot plugin. It inc
 
 ## Wind fields and migration
 
-The unreleased 0.2.0 source requires uBotCore `^0.2.0` and moves wind sources to uBotEnvironment. Aerial still computes air-relative drag and navigation drift compensation through Core's wind provider contract. It has no dependency on uBotEnvironment; without a provider, wind velocity is zero.
+The unreleased 0.2.0 source requires uBotCore `^0.2.0` and moves wind sources to uBotEnvironment. Aerial still computes air-relative drag and navigation drift compensation through Environment's wind provider contract through a private optional compile dependency. Core + Aerial builds independently when Environment is absent or explicitly disabled; wind velocity is then zero. Enable Environment in the project and rebuild Aerial to sample its wind. Rebuild when changing the plugin combination; precompiled binaries must match that combination.
 
 To keep wind in existing Blueprints and levels, install and enable uBotEnvironment before opening those assets, restart the editor, then compile and save them. Environment redirects the old `UBotWind`, `UBotWindSubsystem` and `UBotWindSettings` reflected types; their properties, functions and defaults are unchanged. Native callers must add `UBotEnvironment` to their module dependencies, include `UBotEnvironmentTypes.h` for `FUBotWindSettings`, and rebuild. CoreRedirects do not preserve old C++ binaries.
 

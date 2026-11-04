@@ -24,9 +24,21 @@ bool FUBotAerialModuleLoadsTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Provides"), FString::Join(Package->Provides, TEXT(",")),
         FString(TEXT("Actuation.Velocity,Actuation.Attitude,Actuation.Motor,Body.Multirotor")));
     TestEqual(TEXT("Engine plugins"), FString::Join(Package->ExternalRequires, TEXT(",")), FString(TEXT("EnhancedInput")));
-    if (TestEqual(TEXT("One requirement"), Package->Requires.Num(), 1))
+    const FUBotPackageDependency* Core = Package->Requires.FindByPredicate([](const FUBotPackageDependency& Dependency)
     {
-        TestEqual(TEXT("Requires UBotCore"), Package->Requires[0].Name, FString(TEXT("UBotCore")));
+        return Dependency.Name == TEXT("UBotCore");
+    });
+    const FUBotPackageDependency* Environment = Package->Requires.FindByPredicate([](const FUBotPackageDependency& Dependency)
+    {
+        return Dependency.Name == TEXT("UBotEnvironment");
+    });
+    if (TestNotNull(TEXT("Core requirement"), Core))
+    {
+        TestFalse(TEXT("Core is required"), Core->bOptional);
+    }
+    if (TestNotNull(TEXT("Environment requirement"), Environment))
+    {
+        TestTrue(TEXT("Environment remains optional when absent or disabled"), Environment->bOptional);
     }
     TestTrue(TEXT("The descriptor has no problems"), Package->Problems.IsEmpty());
     return true;

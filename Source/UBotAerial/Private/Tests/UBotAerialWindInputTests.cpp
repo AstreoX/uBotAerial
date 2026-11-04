@@ -13,79 +13,86 @@
 #include "UBotMultirotorMovementComponent.h"
 #include "UBotSimpleFlightComponent.h"
 #include "UBotAerialWindTestTypes.h"
-#include "UBotWindQuerySubsystem.h"
+#if WITH_UBOT_ENVIRONMENT
+#include "UBotWindSubsystem.h"
+#endif
 #include "UObject/StrongObjectPtr.h"
+
+// Runs in every source combination, including a host with no Environment plugin installed.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialStillAirTest, "UBotAerial.Wind.StillAir", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FUBotAerialStillAirTest::RunTest(const FString& Parameters)
+{
+    using namespace UBotAerialTests;
+    AddInfo(FString::Printf(TEXT("Compiled optional Environment integration: %d"), WITH_UBOT_ENVIRONMENT));
+    FScopedAerialTestWorld Scope;
+    const FVector StartCentimeters(125.0, -250.0, 1000.0);
+    AUBotAerialTestWindDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestWindDrone>(StartCentimeters);
+    UUBotAerialTestWindFlight* Flight = Drone ? Drone->GetWindFlight() : nullptr;
+    if (!TestNotNull(TEXT("Navigation drone"), Flight)) { return false; }
+    Scope.RunFor(1.0);
+    TestTrue(TEXT("Fixed steps ran with wind enabled"), Flight->Samples > 100);
+    TestEqual(TEXT("No wind source gives zero wind"), Flight->SampledWind, FVector::ZeroVector);
+    TestTrue(TEXT("Still air does not move the drone"), Flight->GetMultirotorState().PositionMeters.Equals(StartCentimeters / 100.0, 1e-9));
+    return true;
+}
+
+#if WITH_UBOT_ENVIRONMENT
 
 namespace UBotAerialWindInputTests
 {
     using namespace UBotAerialTests;
 
-    // Isolate the flight response from whichever optional environment the host has enabled.
-    class FScopedWindProvider
+    // Exercise the actual optional plugin, with each transient world owning its own wind.
+    class FScopedWindSource
     {
     public:
-        UE_NONCOPYABLE(FScopedWindProvider);
-
-        explicit FScopedWindProvider(const FScopedAerialTestWorld& Scope, const FVector& Velocity = FVector::ZeroVector)
-            : Query(Scope.Get()->GetSubsystem<UUBotWindQuerySubsystem>())
-            , Provider(NewObject<UUBotAerialTestWindProvider>(Scope.Get()))
+        explicit FScopedWindSource(const FScopedAerialTestWorld& Scope, const FVector& Velocity = FVector::ZeroVector)
+            : Wind(Scope.Get()->GetSubsystem<UUBotWindSubsystem>())
         {
-            check(Query);
-            Scope.Get()->ForEachSubsystem<UWorldSubsystem>([this](UWorldSubsystem* Subsystem)
-            {
-                if (Cast<IUBotWindProvider>(Subsystem))
-                {
-                    PreviousProvider = Subsystem;
-                    Query->UnregisterProvider(Subsystem);
-                }
-            });
-            Provider->Velocity = Velocity;
-            const bool bRegistered = Query->RegisterProvider(Provider.Get());
-            check(bRegistered);
+            check(Wind);
+            SetVelocity(Velocity);
         }
 
-        ~FScopedWindProvider()
+        void SetVelocity(const FVector& Velocity) const
         {
-            Query->UnregisterProvider(Provider.Get());
-            if (PreviousProvider.IsValid())
-            {
-                Query->RegisterProvider(PreviousProvider.Get());
-            }
+            FUBotWindSettings Settings;
+            Settings.ConstantVelocityMetersPerSecond = Velocity;
+            Wind->SetScriptedWind(Settings, true);
         }
-
-        UUBotAerialTestWindProvider* Get() const { return Provider.Get(); }
 
     private:
-        UUBotWindQuerySubsystem* Query;
-        TStrongObjectPtr<UUBotAerialTestWindProvider> Provider;
-        TWeakObjectPtr<UObject> PreviousProvider;
+        UUBotWindSubsystem* Wind;
     };
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialWindSamplingTest, "UBotAerial.Wind.CoreSampling", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialWindSamplingTest, "UBotAerial.Wind.EnvironmentSampling", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FUBotAerialWindSamplingTest::RunTest(const FString& Parameters)
 {
-    using namespace UBotAerialWindInputTests;
+    using namespace UBotAerialTests;
     FScopedAerialTestWorld Scope;
-    FScopedWindProvider Wind(Scope);
-    const FVector StartCentimeters(125.0, -250.0, 1000.0);
-    AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(StartCentimeters);
-    UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
-    if (!TestNotNull(TEXT("Navigation drone"), Flight))
-    {
-        return false;
-    }
-    Scope.RunFor(0.1);
-    TestTrue(TEXT("The flight model queries the Core provider"), Wind.Get()->Queries > 1);
-    TestTrue(TEXT("Provider receives world position in centimeters"), Wind.Get()->LastLocationCentimeters.Equals(StartCentimeters, 1e-9));
-    const double StepSeconds = 1.0 / Flight->PhysicsRateHz;
-    TestEqual(TEXT("Provider receives the start time of the latest fixed physics step"),
-        Wind.Get()->LastTimeSeconds, Flight->GetMultirotorState().SimTimeSeconds - StepSeconds, 1e-12);
-    const int32 QueriesBeforeDisabling = Wind.Get()->Queries;
+    UUBotWindSubsystem* Wind = Scope.Get()->GetSubsystem<UUBotWindSubsystem>();
+    if (!TestNotNull(TEXT("Environment wind subsystem"), Wind)) { return false; }
+    FUBotWindSettings Settings;
+    Settings.GustStandardDeviationMetersPerSecond = FVector(1.0, 2.0, 0.5);
+    Settings.GustCorrelationTimeSeconds = 0.2;
+    Settings.Seed = 928;
+    Wind->SetScriptedWind(Settings, true);
+    AUBotAerialTestWindDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestWindDrone>(FVector(125.0, -250.0, 1000.0));
+    UUBotAerialTestWindFlight* Flight = Drone ? Drone->GetWindFlight() : nullptr;
+    if (!TestNotNull(TEXT("Navigation drone"), Flight)) { return false; }
+    Scope.RunFor(0.1, 0.025f);
+    TestTrue(TEXT("Fixed steps sample the optional Environment field"), Flight->Samples > 1);
+    TestEqual(TEXT("Sampling uses the start of the latest fixed physics step"),
+        Flight->SampledTimeSeconds, Flight->GetMultirotorState().SimTimeSeconds - 1.0 / Flight->PhysicsRateHz, 1e-12);
+    TestTrue(TEXT("Time-dependent wind is sampled at physics time, not frame time"),
+        Flight->SampledWind.Equals(Wind->GetWindVelocity(Flight->SampledLocationCentimeters, Flight->SampledTimeSeconds), 1e-12));
+    TestFalse(TEXT("The gust distinguishes frame time from step time"),
+        Flight->SampledWind.Equals(Wind->GetWindVelocity(Flight->SampledLocationCentimeters, Scope.Now()), 1e-8));
     Flight->bEnableWind = false;
     Scope.RunFor(0.1);
-    TestEqual(TEXT("Disabling wind bypasses the provider"), Wind.Get()->Queries, QueriesBeforeDisabling);
+    TestEqual(TEXT("Disabling wind gives the flight model zero wind input"), Flight->SampledWind, FVector::ZeroVector);
     return true;
 }
 
@@ -95,7 +102,7 @@ bool FUBotAerialWindPhysicsTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialWindInputTests;
     FScopedAerialTestWorld Scope;
-    FScopedWindProvider Wind(Scope, FVector(5.0, 0.0, 0.0));
+    FScopedWindSource Wind(Scope, FVector(5.0, 0.0, 0.0));
     AUBotAerialTestPhysicsDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestPhysicsDrone>(FVector(0.0, 0.0, 1000.0));
     UUBotMultirotorDynamicsComponent* Dynamics = Drone ? Drone->GetDynamics() : nullptr;
     if (!TestNotNull(TEXT("Physics drone"), Dynamics))
@@ -125,7 +132,7 @@ bool FUBotAerialWindSimpleTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialWindInputTests;
     FScopedAerialTestWorld Scope;
-    FScopedWindProvider Wind(Scope);
+    FScopedWindSource Wind(Scope);
     AUBotAerialTestNavigationDrone* Drone = Scope.SpawnAndBegin<AUBotAerialTestNavigationDrone>(FVector(0.0, 0.0, 1000.0));
     UUBotSimpleFlightComponent* Flight = Drone ? Drone->GetSimpleFlight() : nullptr;
     if (!TestNotNull(TEXT("Navigation drone"), Flight))
@@ -134,7 +141,7 @@ bool FUBotAerialWindSimpleTest::RunTest(const FString& Parameters)
     }
     Scope.RunFor(1.0);
     // A 3 m/s gust front arrives: the drone drifts, then compensates.
-    Wind.Get()->Velocity = FVector(0.0, 3.0, 0.0);
+    Wind.SetVelocity(FVector(0.0, 3.0, 0.0));
     const FVector Start = Flight->GetMultirotorState().PositionMeters;
     double Drift = 0.0;
     Scope.RunFor(8.0, FrameSeconds, [&] { Drift = FMath::Max(Drift, (Flight->GetMultirotorState().PositionMeters - Start).Size()); });
@@ -150,7 +157,7 @@ bool FUBotAerialWindStepCollisionTest::RunTest(const FString& Parameters)
 {
     using namespace UBotAerialWindInputTests;
     FScopedAerialTestWorld Scope;
-    FScopedWindProvider Wind(Scope);
+    FScopedWindSource Wind(Scope);
     const FVector Normal = FVector(1.0, 1.0, 0.0).GetSafeNormal();
     const FVector StartCm(0.0, 0.0, 1000.0);
     constexpr double WallFaceCm = 44.5;
@@ -174,7 +181,7 @@ bool FUBotAerialWindStepCollisionTest::RunTest(const FString& Parameters)
     // Initialize compensation in zero wind, then advance exactly eight 2 ms steps in one frame.
     Scope.Tick(0.032f);
     const int64 StepsBefore = Flight->GetPhysicsStepCount();
-    Wind.Get()->Velocity = Normal * 5.0;
+    Wind.SetVelocity(Normal * 5.0);
     Scope.Tick(0.016f);
     TestEqual(TEXT("Gust frame advances eight fixed steps"), Flight->GetPhysicsStepCount() - StepsBefore, int64(8));
 
@@ -195,6 +202,8 @@ bool FUBotAerialWindStepCollisionTest::RunTest(const FString& Parameters)
         FVector::DotProduct(Drone->GetActorLocation() - StartCm, Normal) + SupportCm <= WallFaceCm + 1e-3);
     return true;
 }
+
+#endif // WITH_UBOT_ENVIRONMENT
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUBotAerialInputMappingTest, "UBotAerial.Input.Mapping", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
