@@ -39,11 +39,11 @@ uBot Aerial adds multirotor drones to Unreal Engine 5.5 as a uBot plugin. It inc
 
 ## Wind fields and migration
 
-The unreleased 0.1.2 moves wind sources to uBotEnvironment. Aerial still computes air-relative drag and navigation drift compensation, through the wind provider contract in uBotCore 0.1.4. It has no dependency on uBotEnvironment; without a provider, wind velocity is zero.
+The unreleased 0.2.0 source requires uBotCore `^0.2.0` and moves wind sources to uBotEnvironment. Aerial still computes air-relative drag and navigation drift compensation through Core's wind provider contract. It has no dependency on uBotEnvironment; without a provider, wind velocity is zero.
 
 To keep wind in existing Blueprints and levels, install and enable uBotEnvironment before opening those assets, restart the editor, then compile and save them. Environment redirects the old `UBotWind`, `UBotWindSubsystem` and `UBotWindSettings` reflected types; their properties, functions and defaults are unchanged. Native callers must add `UBotEnvironment` to their module dependencies, include `UBotEnvironmentTypes.h` for `FUBotWindSettings`, and rebuild. CoreRedirects do not preserve old C++ binaries.
 
-The demo map no longer contains its previously disabled wind actor, so all Aerial examples work independently. Add a `uBot Wind` from Environment to try wind. These development versions are not yet available through uBot Manager.
+The demo map no longer contains its previously disabled wind actor, so all Aerial examples work independently. Add a `uBot Wind` from Environment to try wind. These development versions are not yet available through uBot Manager. Rebuild all dependent modules together; do not mix 0.1.x DLLs with 0.2.0. See [Core API migration](https://astreox.github.io/uBotDocs/develop/migration/#core-旧-ros-api-迁移020-开发版). The installation examples below use released 0.1.x tags.
 
 ## Install
 

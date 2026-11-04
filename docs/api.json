@@ -1,7 +1,7 @@
 {
   "format": 1,
   "plugin": "UBotAerial",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "engine": "5.5",
   "repository": "https://github.com/AstreoX/uBotAerial",
   "generator": "UBotDocExport 1",

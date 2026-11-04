@@ -1,7 +1,7 @@
 {
     "FileVersion": 3,
-    "Version": 2,
-    "VersionName": "0.1.2",
+    "Version": 3,
+    "VersionName": "0.2.0",
     "FriendlyName": "uBot Aerial",
     "Description": "uBot multirotor drones: simplified flight for navigation research, rigid-body dynamics with velocity, attitude, body-rate and motor control, shared wind response, keyboard or gamepad flight, and example drone Blueprints with a demo map. No ROS dependency.",
     "Category": "uBot",
@@ -33,7 +33,7 @@
         "Requires": [
             {
                 "Name": "UBotCore",
-                "Version": "^0.1.4"
+                "Version": "^0.2.0"
             }
         ],
         "EnginePlugins": [
