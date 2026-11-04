@@ -11,7 +11,6 @@
 
 class FUBotMultirotorCollision;
 class UUBotRotorComponent;
-class UUBotWindQuerySubsystem;
 struct FUBotMultirotorContacts;
 class FUBotAerialBodyStateHistory;
 
@@ -215,7 +214,8 @@ private:
     TSharedPtr<FUBotMultirotorCollision> Collision;
     TArray<FQueuedImpact> QueuedImpacts;
     TArray<TWeakObjectPtr<UUBotRotorComponent>> Rotors;
-    TWeakObjectPtr<const UUBotWindQuerySubsystem> WindQuery;
+    // The optional Environment type stays private to the implementation, in every build configuration.
+    TWeakObjectPtr<const UObject> WindQuery;
     FTransform LastPresentedTransform = FTransform::Identity;
     FVector Gravity = FVector(0.0, 0.0, -9.80665);
     int64 StepCount = 0;

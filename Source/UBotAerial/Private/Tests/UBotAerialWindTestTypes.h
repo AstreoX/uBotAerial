@@ -1,29 +1,42 @@
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/World.h"
-#include "UBotWindProvider.h"
+#include "UBotAerialTestTypes.h"
+#include "UBotSimpleFlightComponent.h"
 #include "UBotAerialWindTestTypes.generated.h"
 
-// Aerial tests supply wind through the Core contract, without an environment plugin.
+// Observe real fixed-step samples without an optional module in a reflected declaration.
 UCLASS(Transient, NotBlueprintable, HideDropdown)
-class UUBotAerialTestWindProvider : public UObject, public IUBotWindProvider
+class UUBotAerialTestWindFlight : public UUBotSimpleFlightComponent
 {
     GENERATED_BODY()
 
 public:
-    FVector Velocity = FVector::ZeroVector;
-    mutable FVector LastLocationCentimeters = FVector::ZeroVector;
-    mutable double LastTimeSeconds = 0.0;
-    mutable int32 Queries = 0;
+    FVector SampledWind = FVector::ZeroVector;
+    FVector SampledLocationCentimeters = FVector::ZeroVector;
+    double SampledTimeSeconds = 0.0;
+    int32 Samples = 0;
 
-    virtual UWorld* GetWorld() const override { return GetTypedOuter<UWorld>(); }
-
-    virtual FVector GetWindVelocity(const FVector& LocationCentimeters, double TimeSeconds) const override
+protected:
+    virtual void SimulateStep(double StepSeconds) override
     {
-        LastLocationCentimeters = LocationCentimeters;
-        LastTimeSeconds = TimeSeconds;
-        ++Queries;
-        return Velocity;
+        SampledLocationCentimeters = PositionMeters * 100.0;
+        SampledTimeSeconds = GetPhysicsTimeSeconds();
+        SampledWind = bEnableWind ? SampleWind() : FVector::ZeroVector;
+        ++Samples;
+        Super::SimulateStep(StepSeconds);
     }
+};
+
+UCLASS(Transient, NotBlueprintable, NotPlaceable, HideDropdown)
+class AUBotAerialTestWindDrone : public AUBotAerialTestDrone
+{
+    GENERATED_BODY()
+
+public:
+    AUBotAerialTestWindDrone(const FObjectInitializer& ObjectInitializer)
+        : Super(ObjectInitializer.SetDefaultSubobjectClass<UUBotAerialTestWindFlight>(MovementComponentName))
+    {
+    }
+
+    UUBotAerialTestWindFlight* GetWindFlight() const { return Cast<UUBotAerialTestWindFlight>(Movement); }
 };

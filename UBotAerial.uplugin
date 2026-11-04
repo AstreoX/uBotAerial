@@ -16,6 +16,11 @@
             "Enabled": true
         },
         {
+            "Name": "UBotEnvironment",
+            "Enabled": false,
+            "Optional": true
+        },
+        {
             "Name": "EnhancedInput",
             "Enabled": true
         }
@@ -34,6 +39,11 @@
             {
                 "Name": "UBotCore",
                 "Version": "^0.2.0"
+            },
+            {
+                "Name": "UBotEnvironment",
+                "Version": "^0.2.0",
+                "Optional": true
             }
         ],
         "EnginePlugins": [
